@@ -7,6 +7,7 @@ import { getCtx, toScreen, getZoom, getSize } from '../engine.js';
 import { getTileMap, getTileRoomId, getRoomInstances } from '../map.js';
 import { isOnFloor, getFloorMask, getAllExpansions, isExpansionAvailable, isExpansionPurchased } from '../floorplan.js';
 import { G } from '../game.js';
+import { formatCurrency, t, translateLabel } from '../i18n/index.js';
 
 // ─── Pattern-specific tile drawers ────────────────────────────
 
@@ -278,13 +279,13 @@ export function drawExpansionZones() {
         ctx.fillStyle = `rgba(240,180,80,${pulse * 0.7})`;
         ctx.font = `bold ${Math.max(9, 10 * zoom)}px system-ui`;
         ctx.textAlign = 'center';
-        ctx.fillText(`🗺️ ${exp.name}`, center.x, center.y - 6 * zoom);
+        ctx.fillText(`🗺️ ${translateLabel(`content.expansions.${exp.id}`, exp.name)}`, center.x, center.y - 6 * zoom);
         ctx.font = `bold ${Math.max(9, 10 * zoom)}px system-ui`;
         ctx.fillStyle = `rgba(80,200,120,${pulse * 0.8})`;
-        ctx.fillText(`$${exp.cost.toLocaleString()}`, center.x, center.y + 7 * zoom);
+        ctx.fillText(formatCurrency(exp.cost), center.x, center.y + 7 * zoom);
         ctx.font = `${Math.max(7, 8 * zoom)}px system-ui`;
         ctx.fillStyle = `rgba(240,180,80,${pulse * 0.5})`;
-        ctx.fillText('click to expand', center.x, center.y + 18 * zoom);
+        ctx.fillText(t('build.clickToExpand'), center.x, center.y + 18 * zoom);
       }
     }
   }

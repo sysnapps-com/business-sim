@@ -2,7 +2,7 @@
 //  BUSINESS TYCOON — Simulation Tick Orchestrator
 // ═══════════════════════════════════════════════════════════════
 
-import { ECONOMY, PROJECT_TEMPLATES, TUTORIAL_HINTS, COMPANY_TYPES, OFFICE_TYPES, AGENT_ROLES, AGENT_SALARY, SPEECH_RAISE, SPEECH_QUIT, ALIGNMENT, SPEECH_QUIT_MISALIGNED, SPEECH_ALIGNED, SPEECH_TEAM_BUILDING, GROWTH_MODELS } from './config.js';
+import { ECONOMY, PROJECT_TEMPLATES, COMPANY_TYPES, OFFICE_TYPES, AGENT_ROLES, AGENT_SALARY, SPEECH_RAISE, SPEECH_QUIT, ALIGNMENT, SPEECH_QUIT_MISALIGNED, SPEECH_ALIGNED, SPEECH_TEAM_BUILDING, GROWTH_MODELS } from './config.js';
 import { getRoomInstances, findRoomByType, findAllRoomsByType, countRoomsByType, updateConstruction } from './map.js';
 import { G, trackEvent } from './game.js';
 import { Project } from './project.js';
@@ -33,6 +33,7 @@ import { showLoanModal } from './ui/loan.js';
 import { rollCandidatesForRole, getCandidatesForRole, hasHRStaff } from './recruitment.js';
 import { tryFireEvent, tickEventBuffs, tickDailyEventBuffs, isOfficeFlooded } from './events.js';
 import { Visitor, isRoomOccupiedByVisitor } from './visitor.js';
+import { formatCurrency, formatNumber, t, translateLabel } from './i18n/index.js';
 
 // ─── Task Assignment ───────────────────────────────────────
 function assignTasks() {
@@ -195,9 +196,9 @@ function updateProjects(dt) {
             G.productLevel = Math.min(100, G.productLevel + levelGain);
             G.engineeringProjectsThisWeek++;
             if (G.productLevel >= 10 && G.productLevel - levelGain < 10) {
-              showToast('🔧 Product Lv.10 — MRR is starting to trickle in!');
+              showToast(t('toast.productMrr10'));
             } else if (G.productLevel >= 50 && G.productLevel - levelGain < 50) {
-              showToast('🚀 Product Lv.50 — MRR inflection point! Passive income exceeds costs.');
+              showToast(t('toast.productMrr50'));
             }
           }
 
@@ -230,31 +231,32 @@ function updateProjects(dt) {
           const qualityStars = p.qualityScore > 0.7 ? ' ⭐' : p.qualityScore > 0.4 ? '' : ' 😬';
           sfxProjectComplete();
           if (isCostProject) {
-            showToast(
-              `✅ ${p.name}${qualityStars}<span class="toast-money" style="color:#e06050">-$${Math.abs(finalPay).toLocaleString()}</span>`,
-              { html: true }
-            );
+            showToast(t('toast.projectCost', {
+              name: p.name, quality: qualityStars, amount: formatCurrency(Math.abs(finalPay)),
+            }), { html: true });
           } else {
             sfxMoney();
-            showToast(
-              `✅ ${p.name}${qualityStars}<span class="toast-money">+$${finalPay.toLocaleString()}</span>`,
-              { html: true }
-            );
+            showToast(t('toast.projectPaid', {
+              name: p.name, quality: qualityStars, amount: formatCurrency(finalPay),
+            }), { html: true });
           }
 
           // Synergy toast
           if (synergy.activeLabels.length > 0) {
             sfxSynergy();
-            showToast(`🤝 Synergy! ${synergy.activeLabels.join(', ')} → quality +${Math.round(synergy.totalBonus * 100)}%`);
+            showToast(t('toast.synergy', {
+              labels: synergy.activeLabels.join(', '),
+              percent: formatNumber(Math.round(synergy.totalBonus * 100)),
+            }));
           }
           // Sales commission toast
           if (p.salesClosed && commissionCost > 0) {
             sfxDeal();
             const { commissionRate } = getSalesCommission();
-            showToast(
-              `💵 Sales deal closed <span class="toast-money" style="color:#e0a030">-$${commissionCost.toLocaleString()}</span> <span style="font-size:10px;color:var(--text-dim)">(${Math.round(commissionRate * 100)}% commission)</span>`,
-              { html: true }
-            );
+            showToast(t('toast.salesCommission', {
+              amount: formatCurrency(commissionCost),
+              percent: formatNumber(Math.round(commissionRate * 100)),
+            }), { html: true });
           }
 
           // HR synergy: "Hiring Round" produces candidates for a needed role
@@ -264,7 +266,9 @@ function updateProjects(dt) {
             if (p._recruitTarget && AGENT_ROLES[p._recruitTarget]) {
               rollCandidatesForRole(p._recruitTarget, 3);
               const roleDef = AGENT_ROLES[p._recruitTarget];
-              showToast(`👥 HR found candidates: ${roleDef.title}!`);
+              showToast(t('toast.candidatesFound', {
+                role: translateLabel(`content.roles.${p._recruitTarget}`, roleDef.title),
+              }));
             } else {
               const companyAvail = getCompanyAvailableOffices();
               const candidateRoles = Object.entries(AGENT_ROLES)
@@ -275,7 +279,9 @@ function updateProjects(dt) {
                 const targetRole = candidateRoles[Math.floor(Math.random() * candidateRoles.length)];
                 rollCandidatesForRole(targetRole, 3);
                 const roleDef = AGENT_ROLES[targetRole];
-                showToast(`👥 HR found candidates: ${roleDef.title}!`);
+                showToast(t('toast.candidatesFound', {
+                  role: translateLabel(`content.roles.${targetRole}`, roleDef.title),
+                }));
               }
             }
           }
@@ -395,7 +401,9 @@ function processDayCycle(dt) {
         a.wantsRaise = true;
         a.raiseDeadline = G.day + 7 + (hrStaffed ? 5 : 0);
         a.say(SPEECH_RAISE[Math.floor(Math.random() * SPEECH_RAISE.length)], 250);
-        showToast(`💬 ${a.name} wants a raise! ($${currentSalary} → $${a.expectedSalary}/day)`);
+        showToast(t('toast.raiseRequest', {
+          name: a.name, current: formatCurrency(currentSalary), wanted: formatCurrency(a.expectedSalary),
+        }));
       }
 
       // Check for quitting — salary-based
@@ -411,7 +419,7 @@ function processDayCycle(dt) {
             a.task = null;
           }
           agentsToRemove.push(a);
-          showToast(`👋 ${a.name} quit! Not happy with compensation.`);
+          showToast(t('toast.agentQuit', { name: a.name }));
           continue;
         }
       }
@@ -429,7 +437,7 @@ function processDayCycle(dt) {
             a.task = null;
           }
           agentsToRemove.push(a);
-          showToast(`👋 ${a.name} quit! Team has no direction.`);
+          showToast(t('toast.agentQuitDirection', { name: a.name }));
         }
       }
     }
@@ -464,7 +472,10 @@ function processDayCycle(dt) {
           delete G.remodelingOffices[officeKey];
           G.diversifiedOffices.add(officeKey);
           const roomDef = OFFICE_TYPES[officeKey];
-          showToast(`${roomDef?.icon || '🏗️'} ${roomDef?.name || officeKey} remodel complete — now Delivery!`);
+          showToast(t('toast.remodelComplete', {
+            icon: roomDef?.icon || '🏗️',
+            office: translateLabel(`content.offices.${officeKey}`, roomDef?.name || officeKey),
+          }));
         }
       }
     }
@@ -497,21 +508,24 @@ function processDayCycle(dt) {
     const newlyUnlocked = syncRoomUnlocks();
     for (const roomKey of newlyUnlocked) {
       sfxUnlock();
-      showToast(`🧪 Tech Tree: ${getRoomLabel(roomKey)} unlocked!`);
+      showToast(t('toast.unlock', { name: getRoomLabel(roomKey) }));
     }
 
     // Check win/loss
     const result = G.checkWinCondition();
     if (result === 'win') {
       sfxWin();
-      const companyName = COMPANY_TYPES[G.companyType]?.name || 'company';
-      showToast(`🎉 $1M REVENUE! You built a thriving ${companyName.toLowerCase()}!`);
+      const companyDef = COMPANY_TYPES[G.companyType];
+      const companyName = translateLabel(
+        `content.companies.${G.companyType}.name`, companyDef?.name || 'company',
+      );
+      showToast(t('toast.companyWin', { company: companyName }));
     } else if (result === 'need_loan') {
       G.gameSpeed = 0;
       showLoanModal();
     } else if (result === 'bankrupt') {
       sfxGameOver();
-      showToast('💀 BANKRUPT! Your company ran out of money.');
+      showToast(t('toast.bankrupt'));
     }
 
     G.uiDirty = true;
@@ -530,7 +544,7 @@ function processWeek() {
   // Loan interest compounds weekly
   const interest = G.applyWeeklyInterest();
   if (interest > 0) {
-    showToast(`🏦 Loan interest: +$${interest.toLocaleString()} added to debt`);
+    showToast(t('toast.loanInterest', { amount: formatCurrency(interest) }));
   }
 
   // Auto-repay debt from positive cash balance
@@ -539,7 +553,7 @@ function processWeek() {
     if (repayAmount > 0) {
       const paid = G.repayDebt(repayAmount);
       if (paid > 0) {
-        showToast(`🏦 Auto-repaid $${paid.toLocaleString()} debt`);
+        showToast(t('toast.debtRepaid', { amount: formatCurrency(paid) }));
       }
     }
   }
@@ -568,7 +582,9 @@ function processWeek() {
         const target = staffed[Math.floor(Math.random() * staffed.length)];
         const roomDef = OFFICE_TYPES[target];
         G.rdBreakthrough = { office: target, expiresWeek: G.week + 2 };
-        showToast(`🔬 R&D Breakthrough! ${roomDef?.icon || '🔬'} ${roomDef?.name || target} projects +20% pay for 2 weeks`);
+        showToast(t('toast.rdBreakthrough', {
+          office: `${roomDef?.icon || '🔬'} ${translateLabel(`content.offices.${target}`, roomDef?.name || target)}`,
+        }));
       }
     }
   }
@@ -613,7 +629,7 @@ function spawnProjects(dt) {
         G.projects.push(starterProject);
       }
       sfxFirstClients();
-      showToast('🎉 Your first clients are here! 2 founding projects received.');
+      showToast(t('toast.firstClients'));
     }
   }
 
@@ -723,7 +739,7 @@ function spawnProjects(dt) {
       p.name = '🤝 ' + p.name;
       G.projects.push(p);
       G.partnershipProjects--;
-      showToast(`🤝 Partnership project arrived! ${G.partnershipProjects} remaining.`);
+      showToast(t('toast.partnership', { count: formatNumber(G.partnershipProjects) }));
       G.uiDirty = true;
     }
   }
@@ -743,7 +759,7 @@ function spawnProjects(dt) {
       a.workTimer = 0;
     }
     G.reputation = Math.round(Math.max(0, G.reputation - 2));
-    showToast(`💀 ${p.name} expired! No payment received. Rep -2`);
+    showToast(t('toast.projectExpired', { name: p.name }));
   }
   if (expired.length > 0) {
     G.projects = G.projects.filter(p => !expired.includes(p));
@@ -805,22 +821,25 @@ function spawnInternalProjects(dt) {
   }
 }
 
-const HINT_BY_TRIGGER = Object.fromEntries(
-  TUTORIAL_HINTS.map(h => [h.trigger, h.text])
-);
-
-const FIRST_HIRE_HINTS = {
-  fashion_retail:  'Your agent needs projects! Build a Shopfront to attract walk-in customers.',
-  ecommerce:       'Your agent needs projects! Build a Sales Office and Warehouse to start selling.',
-  maker_co:        'Your agent needs projects! Build a Workshop to start making products.',
-  tech_lab:        'Your agent needs projects! Build an Engineering Lab to start building tech.',
-  staffing_agency: 'Your agent needs projects! Build an HR Office to start placing candidates.',
+const HINT_KEY_BY_TRIGGER = {
+  start: 'tutorial.start',
+  first_room: 'tutorial.firstRoom',
+  first_project: 'tutorial.firstProject',
+  low_mood: 'tutorial.lowMood',
+  low_energy: 'tutorial.lowEnergy',
+  low_motivation: 'tutorial.lowMotivation',
+  stalled: 'tutorial.stalled',
+  low_alignment: 'tutorial.lowAlignment',
+  analytics: 'tutorial.analytics',
 };
-const FIRST_HIRE_DEFAULT = 'Your agent needs projects! Build a Marketing HQ for paid traffic or Sales Office to close deals.';
 
 function showTutorialHint(trigger) {
-  let text = HINT_BY_TRIGGER[trigger];
-  if (trigger === 'first_hire') text = FIRST_HIRE_HINTS[G.companyType] || FIRST_HIRE_DEFAULT;
+  const key = trigger === 'first_hire'
+    ? `tutorial.firstHire.${G.companyType}`
+    : HINT_KEY_BY_TRIGGER[trigger];
+  const text = key && (trigger === 'first_hire'
+    ? translateLabel(key, t('tutorial.firstHireDefault'))
+    : t(key));
   if (!text || G.shownHints.has(trigger)) return false;
   G.shownHints.add(trigger);
   G.lastHintTick = G.gameTick;
@@ -943,7 +962,7 @@ function startStandup(meetingRoom) {
     a.state = 'walking';
     a.moveToRoom(closest.id);
   }
-  showToast('🤝 Standup! Everyone to the meeting room.');
+  showToast(t('toast.standupStart'));
 }
 
 function updateStandup(dt) {
@@ -1023,7 +1042,7 @@ function endStandup() {
   G.standupPhase = null;
   G.standupTimer = 0;
   G.standupCenter = null;
-  showToast('🤝 Standup done! Team morale boosted.');
+  showToast(t('toast.standupDone'));
 }
 
 // ─── Team Building (CEO action) ─────────────────────────
@@ -1119,7 +1138,7 @@ function updateTeamBuilding(dt) {
     const msg = alignPct > 70
       ? SPEECH_ALIGNED[Math.floor(Math.random() * SPEECH_ALIGNED.length)]
       : 'Team alignment improved!';
-    showToast(`🎯 Team building done! Alignment: ${alignPct}% — ${msg}`);
+    showToast(t('toast.teamBuildingDone', { percent: formatNumber(alignPct), message: msg }));
     G.uiDirty = true;
   }
 }
@@ -1131,7 +1150,7 @@ export function startTeamBuilding() {
 
   const hasMeeting = findRoomByType('meeting');
   if (!hasMeeting) {
-    showToast('❌ Need a Meeting Room for team building!');
+    showToast(t('toast.meetingRequired'));
     return false;
   }
 
@@ -1170,7 +1189,7 @@ export function startTeamBuilding() {
     a.moveToRoom(hasMeeting.id);
   }
 
-  showToast('🎯 CEO called a team building! Everyone to the meeting room.');
+  showToast(t('toast.teamBuildingStart'));
   G.uiDirty = true;
   return true;
 }
@@ -1358,7 +1377,10 @@ export function simulationTick(dt) {
   // Construction progress
   const builtRooms = updateConstruction(dt);
   for (const room of builtRooms) {
-    showToast(`✅ ${room.type.icon} ${room.type.name} ready!`);
+    showToast(t('toast.roomReady', {
+      icon: room.type.icon,
+      room: translateLabel(`content.offices.${room.typeKey}`, room.type.name),
+    }));
     G.uiDirty = true;
   }
 

@@ -10,22 +10,23 @@ import { Project } from '../project.js';
 import { rollCandidatesForRole, getCandidatesForRole } from '../recruitment.js';
 import { startTeamBuilding } from '../simulation.js';
 import { showToast } from './toast.js';
+import { formatCurrency, formatNumber, t, tp, translateLabel } from '../i18n/index.js';
 
 function getNoProjectsDiagnosis() {
   if (G.agents.length === 0) {
-    return 'No active projects — hire your first agent.';
+    return t('employee.noProjects');
   }
 
   const hasTrafficSource = getRoomInstances().some(r =>
     ['content', 'sales', 'marketing', 'seo', 'shopfront'].includes(r.typeKey)
   );
   if (!hasTrafficSource) {
-    return 'No active projects — build Marketing HQ, Content Studio, or Sales Office.';
+    return t('employee.noTrafficOffices');
   }
 
   const staffCount = G.agents.filter(a => a.roleKey !== 'ceo').length;
   if (staffCount === 0) {
-    return 'No active projects — hire delivery staff for at least one office.';
+    return t('employee.noDeliveryStaff');
   }
 
   const totalVisitors = (G.metrics.paidVisitors || 0) + (G.metrics.organicVisitors || 0);
@@ -34,25 +35,25 @@ function getNoProjectsDiagnosis() {
   const clients = G.metrics.clients || 0;
 
   if (totalVisitors < 20) {
-    return 'No active projects — traffic is low. Build Marketing HQ for paid ads or grow organic.';
+    return t('employee.lowTraffic');
   }
   if (leads < 0.5) {
-    return 'No active projects — conversion is weak. Improve design/content setup.';
+    return t('employee.weakConversion');
   }
   if (salesCapacity < 0.2) {
-    return 'No active projects — sales capacity is near zero. Hire Sales or add Marketing.';
+    return t('employee.lowSales');
   }
   if (clients < 0.2) {
-    return 'No active projects — pipeline is warming up. Wait a bit or improve GTM balance.';
+    return t('employee.warmingPipeline');
   }
 
-  return 'No active projects — pipeline is active; next projects should appear soon.';
+  return t('employee.soon');
 }
 
 function renderProjectSourceTag(source) {
-  if (source === 'paid') return '<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(224,112,48,0.16);color:#f0b080;border:1px solid rgba(224,112,48,0.35)">📣 Paid</span>';
-  if (source === 'referral') return '<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(80,200,120,0.16);color:#89dca5;border:1px solid rgba(80,200,120,0.35)">🤝 Referral</span>';
-  return '<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(120,140,170,0.16);color:#b7c3d6;border:1px solid rgba(120,140,170,0.35)">🌿 Organic</span>';
+  if (source === 'paid') return `<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(224,112,48,0.16);color:#f0b080;border:1px solid rgba(224,112,48,0.35)">${t('employee.paid')}</span>`;
+  if (source === 'referral') return `<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(80,200,120,0.16);color:#89dca5;border:1px solid rgba(80,200,120,0.35)">${t('employee.referral')}</span>`;
+  return `<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(120,140,170,0.16);color:#b7c3d6;border:1px solid rgba(120,140,170,0.35)">${t('employee.organic')}</span>`;
 }
 
 export function initPanels() {
@@ -96,7 +97,7 @@ export function updateAgentPanel() {
   document.getElementById('ap-name').textContent = a.name;
 
   const roleEl = document.getElementById('ap-role');
-  roleEl.textContent = a.role.title;
+  roleEl.textContent = translateLabel(`content.roles.${a.roleKey}`, a.role.title);
   roleEl.style.background = a.role.color + '20';
   roleEl.style.color = a.role.color;
 
@@ -105,7 +106,8 @@ export function updateAgentPanel() {
   if (senEl) {
     const tier = SENIORITY_LEVELS[a.seniority] || SENIORITY_LEVELS[2];
     const tierColor = a.seniority >= 4 ? '#f0d050' : a.seniority >= 3 ? '#b0c8e8' : 'var(--text-dim)';
-    senEl.innerHTML = `<span style="color:${tierColor}">${seniorityStars(a.seniority)} ${tier.label}</span>`;
+    const tierLabel = translateLabel(`content.seniority.${tier.label.toLowerCase()}`, tier.label);
+    senEl.innerHTML = `<span style="color:${tierColor}">${seniorityStars(a.seniority)} ${tierLabel}</span>`;
   }
 
   document.getElementById('ap-tasks').textContent = a.tasksCompleted;
@@ -136,11 +138,11 @@ export function updateAgentPanel() {
   if (iqLabelEl) {
     const iqInfo = getIQLabel(a.iq);
     const iqColor = a.iq >= 1.3 ? '#f0d050' : a.iq >= 1.0 ? '#b0c8e8' : 'var(--text-dim)';
-    iqLabelEl.textContent = iqInfo.label;
+    iqLabelEl.textContent = translateLabel(`content.iq.${iqInfo.label.toLowerCase()}`, iqInfo.label);
     iqLabelEl.style.color = iqColor;
   }
   if (iqValueEl) {
-    iqValueEl.textContent = `Skill cap: ${Math.round(a.maxSkill * 100)}%`;
+    iqValueEl.textContent = t('employee.skillCap', { percent: formatNumber(Math.round(a.maxSkill * 100)) });
   }
 
   // Motivation bar
@@ -190,7 +192,11 @@ export function updateAgentPanel() {
       const currentSalary = a.salary ?? AGENT_SALARY[a.roleKey] ?? 70;
       const daysLeft = Math.max(0, a.raiseDeadline - G.day);
       if (raiseInfo) {
-        raiseInfo.textContent = `Current: $${currentSalary}/day → Wants: $${a.expectedSalary}/day (${daysLeft} days left)`;
+        raiseInfo.textContent = t('employee.currentWants', {
+          current: formatCurrency(currentSalary),
+          wanted: formatCurrency(a.expectedSalary),
+          days: formatNumber(daysLeft),
+        });
       }
       // Bind raise buttons (only once per render)
       const giveBtn = document.getElementById('ap-raise-give');
@@ -201,7 +207,7 @@ export function updateAgentPanel() {
           if (!G.selectedAgent || !G.selectedAgent.wantsRaise) return;
           const ag = G.selectedAgent;
           ag.giveRaise();
-          showToast(`💰 ${ag.name} got a raise to $${ag.salary}/day`);
+          showToast(t('toast.agentRaise', { name: ag.name, amount: formatCurrency(ag.salary) }));
           updateAgentPanel();
         });
       }
@@ -212,7 +218,7 @@ export function updateAgentPanel() {
           const ag = G.selectedAgent;
           ag.denyRaise();
           ag.wantsRaise = false;
-          showToast(`${ag.name} is disappointed...`);
+          showToast(t('toast.agentDisappointed', { name: ag.name }));
           updateAgentPanel();
         });
       }
@@ -225,18 +231,18 @@ export function updateAgentPanel() {
   const effEl = document.getElementById('ap-efficiency');
   if (effEl) effEl.textContent = (a.efficiency).toFixed(2) + 'x';
 
-  const statusText = a.inMeeting ? '🎯 In Meeting'
-    : a.state === 'idle' ? '💤 Waiting for tasks'
-    : a.state === 'walking' ? '🚶 Moving to position'
-    : a.state === 'working' ? '⚡ ' + (a.task ? a.task.name : 'Working')
-    : a.state === 'thinking' ? '🧠 AI Processing...'
-    : a.state === 'break' ? '☕ On break'
+  const statusText = a.inMeeting ? t('employee.statusMeeting')
+    : a.state === 'idle' ? t('employee.statusIdle')
+    : a.state === 'walking' ? t('employee.statusWalking')
+    : a.state === 'working' ? t('employee.statusWorking', { task: a.task ? a.task.name : t('employee.working') })
+    : a.state === 'thinking' ? t('employee.statusThinking')
+    : a.state === 'break' ? t('employee.statusBreak')
     : a.state;
   document.getElementById('ap-status').textContent = statusText;
 
   // Revenue
   const revEl = document.getElementById('ap-revenue');
-  if (revEl) revEl.textContent = '$' + a.totalRevenue.toLocaleString();
+  if (revEl) revEl.textContent = formatCurrency(a.totalRevenue);
 
   // Agent actions (micromanagement) — only rebuild if action set changed
   const actionsEl = document.getElementById('ap-actions');
@@ -252,7 +258,7 @@ export function updateAgentPanel() {
       actionsEl.innerHTML = '';
 
       if (actions.length > 0) {
-        let html = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px">Assign Task</div>`;
+        let html = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px">${t('employee.assignTask')}</div>`;
         html += actions.map(act =>
           `<button class="agent-action-btn" data-action="${act.id}" style="
             display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;margin-bottom:4px;
@@ -285,13 +291,13 @@ export function updateAgentPanel() {
   const histEl = document.getElementById('ap-history');
   if (histEl) {
     if (a.workHistory.length === 0) {
-      histEl.innerHTML = '<span style="color:var(--text-faint);font-style:italic">No projects yet</span>';
+      histEl.innerHTML = `<span style="color:var(--text-faint);font-style:italic">${t('employee.noProjectsHistory')}</span>`;
     } else {
       histEl.innerHTML = a.workHistory.map(h => {
         const stars = h.quality > 0.7 ? '⭐' : h.quality > 0.4 ? '✓' : '⚠';
         return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03)">
           <span>${stars} ${h.name}</span>
-          <span style="color:${h.pay < 0 ? '#e05050' : 'var(--success)'}">${h.pay < 0 ? '-$' + Math.abs(h.pay).toLocaleString() : '+$' + h.pay.toLocaleString()}</span>
+          <span style="color:${h.pay < 0 ? '#e05050' : 'var(--success)'}">${h.pay < 0 ? '-' : '+'}${formatCurrency(Math.abs(h.pay))}</span>
         </div>`;
       }).join('');
     }
@@ -302,7 +308,7 @@ export function updateUI() {
   // HUD stats
   const moneyEl = document.getElementById('hud-money');
   const prevMoney = moneyEl.dataset.prev ? parseInt(moneyEl.dataset.prev) : G.money;
-  moneyEl.textContent = '$' + G.money.toLocaleString();
+  moneyEl.textContent = formatCurrency(G.money);
   moneyEl.style.color = G.money < 0 ? '#e05050' : G.money < 500 ? '#e0a030' : '';
   if (G.money > prevMoney + 50) {
     moneyEl.classList.remove('flash-green');
@@ -310,7 +316,7 @@ export function updateUI() {
     moneyEl.classList.add('flash-green');
   }
   moneyEl.dataset.prev = G.money;
-  document.getElementById('hud-revenue').textContent = '$' + G.totalRevenue.toLocaleString();
+  document.getElementById('hud-revenue').textContent = formatCurrency(G.totalRevenue);
   document.getElementById('hud-day').textContent = `D${G.day}`;
   document.getElementById('hud-rep').textContent = Math.round(G.reputation);
 
@@ -333,7 +339,7 @@ export function updateUI() {
   if (debtStat) {
     if (G.debt > 0) {
       debtStat.style.display = '';
-      document.getElementById('hud-debt').textContent = '$' + G.debt.toLocaleString();
+      document.getElementById('hud-debt').textContent = formatCurrency(G.debt);
     } else {
       debtStat.style.display = 'none';
     }
@@ -343,18 +349,18 @@ export function updateUI() {
   const pl = document.getElementById('project-list');
   pl.innerHTML = G.projects.map(p => {
     const progress = p.progress * 100;
-    const workerSuffix = p.assignedAgents?.length ? ` · ${p.assignedAgents.length} worker${p.assignedAgents.length !== 1 ? 's' : ''}` : '';
+    const workerSuffix = p.assignedAgents?.length ? ` · ${tp('project.workers', p.assignedAgents.length)}` : '';
     const phase = p.state === 'in_progress' ? `${p.currentPhase}${workerSuffix}`
-      : (p.stalled ? '<span style="color:#e05050">Needs agent!</span>' : 'Queued');
+      : (p.stalled ? `<span style="color:#e05050">${t('project.needsAgent')}</span>` : t('project.queued'));
     const urgent = p.deadlineUrgent;
     const borderStyle = urgent ? ' style="border-color:rgba(224,80,80,0.3)"' : '';
     const daysLeft = p.deadlineRemaining.toFixed(1);
     const deadlineColor = urgent ? '#e05050' : 'var(--text-faint)';
     return `<div class="project-card"${borderStyle}>
-      <div class="row"><span class="title">${p.template.icon} ${p.name}</span><span class="pay" style="color:${p.pay < 0 ? '#e05050' : ''}">${p.pay < 0 ? '-$' + Math.abs(p.pay).toLocaleString() : '$' + p.pay.toLocaleString()}</span></div>
+    <div class="row"><span class="title">${p.template.icon} ${p.name}</span><span class="pay" style="color:${p.pay < 0 ? '#e05050' : ''}">${p.pay < 0 ? '-' : ''}${formatCurrency(Math.abs(p.pay))}</span></div>
       <div style="margin-top:5px;display:flex;align-items:center;gap:8px">
         ${renderProjectSourceTag(p.source)}
-        <span style="font-size:10px;color:${deadlineColor}">${urgent ? '⚠️' : '⏰'} ${daysLeft}d left</span>
+        <span style="font-size:10px;color:${deadlineColor}">${urgent ? '⚠️' : '⏰'} ${t('project.daysLeft', { days: formatNumber(Number(daysLeft)) })}</span>
       </div>
       <div class="phase">${phase}</div>
       <div class="bar"><div class="bar-fill" style="width:${progress}%;background:${p.template.color}"></div></div>
@@ -370,10 +376,10 @@ export function updateUI() {
       <div class="completed-row">
         <span style="color:${qualityColor}">${qualityIcon}</span>
         <span class="completed-name">${c.name}</span>
-        <span class="completed-pay" style="color:${c.pay < 0 ? '#e05050' : ''}">${c.pay < 0 ? '-$' + Math.abs(c.pay).toLocaleString() : '+$' + c.pay.toLocaleString()}</span>
+        <span class="completed-pay" style="color:${c.pay < 0 ? '#e05050' : ''}">${c.pay < 0 ? '-' : '+'}${formatCurrency(Math.abs(c.pay))}</span>
       </div>
     </div>`;
-  }).join('') || '<span style="color:var(--text-faint)">None yet</span>';
+  }).join('') || `<span style="color:var(--text-faint)">${t('project.noneCompleted')}</span>`;
 
   // Staff tab — use delegated click handler (set once, survives innerHTML rebuilds)
   const sl = document.getElementById('staff-list');
@@ -390,8 +396,8 @@ export function updateUI() {
   sl.innerHTML = G.agents.map(a => {
     const stCls = a.inMeeting ? 'thinking' : a.state === 'working' ? 'working' : a.state === 'thinking' ? 'thinking'
       : a.state === 'walking' ? 'walking' : a.state === 'break' ? 'idle' : 'idle';
-    const stText = a.inMeeting ? '🎯 Meeting' : a.state === 'thinking' ? 'AI...' : a.state === 'break' ? 'Break' :
-      a.state.charAt(0).toUpperCase() + a.state.slice(1);
+    const stText = a.inMeeting ? t('employee.staffMeeting') : a.state === 'thinking' ? t('employee.staffAi') : a.state === 'break' ? t('employee.staffBreak') :
+      translateLabel(`employee.state.${a.state}`, a.state.charAt(0).toUpperCase() + a.state.slice(1));
     const avatarHtml = a.avatar
       ? `<img class="staff-avatar" src="${a.avatar}" alt="${a.name}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${a.role.color}">`
       : `<div class="staff-dot" style="background:${a.role.color}"></div>`;
@@ -408,11 +414,11 @@ export function updateUI() {
     return `<div class="staff-row" data-agent-id="${a.id}">
       ${avatarHtml}
       <span class="staff-name">${a.name}${raiseIcon}</span>
-      <span style="font-size:9px;color:${senColor};letter-spacing:-0.5px" title="${(SENIORITY_LEVELS[a.seniority] || SENIORITY_LEVELS[2]).label}">${'★'.repeat(a.seniority)}</span>
-      <span style="font-size:9px;color:${iqColor}" title="IQ: ${iqInfo.label}">🧠</span>
-      <span title="Alignment: ${alPct}%"><span style="display:inline-block;width:16px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;width:${alPct}%;height:100%;background:${alColor};border-radius:2px"></span></span></span>
-      <span title="Motivation: ${mPct}%"><span style="display:inline-block;width:16px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;width:${mPct}%;height:100%;background:${mColor};border-radius:2px"></span></span></span>
-      <span class="staff-energy" title="Energy: ${ePct}%"><span style="display:inline-block;width:16px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;width:${ePct}%;height:100%;background:${eColor};border-radius:2px"></span></span></span>
+      <span style="font-size:9px;color:${senColor};letter-spacing:-0.5px" title="${translateLabel(`content.seniority.${(SENIORITY_LEVELS[a.seniority] || SENIORITY_LEVELS[2]).label.toLowerCase()}`, (SENIORITY_LEVELS[a.seniority] || SENIORITY_LEVELS[2]).label)}">${'★'.repeat(a.seniority)}</span>
+      <span style="font-size:9px;color:${iqColor}" title="IQ: ${translateLabel(`content.iq.${iqInfo.label.toLowerCase()}`, iqInfo.label)}">🧠</span>
+      <span title="${t('hud.alignment')}: ${formatNumber(alPct)}%"><span style="display:inline-block;width:16px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;width:${alPct}%;height:100%;background:${alColor};border-radius:2px"></span></span></span>
+      <span title="${t('hud.motivation')}: ${formatNumber(mPct)}%"><span style="display:inline-block;width:16px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;width:${mPct}%;height:100%;background:${mColor};border-radius:2px"></span></span></span>
+      <span class="staff-energy" title="${t('hud.energy')}: ${formatNumber(ePct)}%"><span style="display:inline-block;width:16px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;width:${ePct}%;height:100%;background:${eColor};border-radius:2px"></span></span></span>
       <span class="staff-status ${stCls}">${stText}</span>
     </div>`;
   }).join('');
@@ -431,10 +437,10 @@ export function updateUI() {
     }).length;
     return `<div style="padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.03)">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span>${r.type.icon} <strong>${r.type.name}</strong>
-          <span style="color:var(--text-dim);font-size:11px"> · ${agentCount} agent${agentCount!==1?'s':''}</span>
+        <span>${r.type.icon} <strong>${translateLabel(`content.offices.${r.typeKey}`, r.type.name)}</strong>
+          <span style="color:var(--text-dim);font-size:11px"> · ${tp('employee.agents', agentCount)}</span>
         </span>
-        ${officeRev > 0 ? `<span style="font-size:11px;font-weight:700;color:var(--success);font-variant-numeric:tabular-nums">$${Math.round(officeRev).toLocaleString()}</span>` : ''}
+        ${officeRev > 0 ? `<span style="font-size:11px;font-weight:700;color:var(--success);font-variant-numeric:tabular-nums">${formatCurrency(Math.round(officeRev))}</span>` : ''}
       </div>
       ${guide ? `<div style="font-size:10px;color:var(--text-faint);margin-top:2px">${guide.role} · ${guide.impact}</div>` : ''}
       ${active ? `<div style="color:${active.template.color};font-size:11px;margin-top:2px">● ${active.name}</div>` : ''}
@@ -452,7 +458,7 @@ export function updateUI() {
   if (hudVisitors) hudVisitors.textContent = Math.round(G.metrics.totalVisitors);
   if (hudLeads) hudLeads.textContent = G.metrics.leads.toFixed(1);
   if (hudProjects) hudProjects.textContent = G.metrics.clients.toFixed(1);
-  if (hudAcv) hudAcv.textContent = '$' + (G.metrics.acv || 0).toLocaleString();
+  if (hudAcv) hudAcv.textContent = formatCurrency(G.metrics.acv || 0);
 
   // Growth model — shown only in analytics panel, not in HUD (saves space)
 
@@ -486,46 +492,46 @@ export function updateUI() {
       if (!catCosts[catKey]) continue;
       catBreakdownHtml += `
         <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px">
-          <span style="color:var(--text-dim)">${cat.icon} ${cat.label}</span>
-          <span style="color:var(--text-dim)">$${Math.round(catCosts[catKey]).toLocaleString()}/day</span>
+          <span style="color:var(--text-dim)">${cat.icon} ${translateLabel(`content.officeCategories.${catKey}`, cat.label)}</span>
+          <span style="color:var(--text-dim)">${formatCurrency(Math.round(catCosts[catKey]))}/day</span>
         </div>`;
     }
 
     financeSummary.innerHTML = `
-      <h4>Daily P&L</h4>
+      <h4>${t('finance.dailyPnL')}</h4>
       <div style="font-size:12px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0">
-          <span style="color:var(--text-dim)">Revenue</span>
+          <span style="color:var(--text-dim)">${t('finance.revenue')}</span>
           <span style="color:var(--success);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums">
-            $${Math.round(rev).toLocaleString()}
+            ${formatCurrency(Math.round(rev))}
           </span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0">
-          <span style="color:var(--text-dim)">Costs</span>
+          <span style="color:var(--text-dim)">${t('finance.costs')}</span>
           <span style="color:#e05050;font-weight:600;font-variant-numeric:tabular-nums">
-            -$${Math.round(costs).toLocaleString()}
+            -${formatCurrency(Math.round(costs))}
           </span>
         </div>
         ${catBreakdownHtml ? `<div style="padding:4px 0 2px 8px;border-left:2px solid var(--border)">${catBreakdownHtml}</div>` : ''}
         <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-top:1px solid var(--border);margin-top:6px">
           <span style="font-weight:700;font-size:13px">Net Profit</span>
           <span style="color:${profit >= 0 ? 'var(--success)' : '#e05050'};font-weight:800;font-size:15px;font-variant-numeric:tabular-nums">
-            ${profit >= 0 ? '+' : ''}$${Math.round(profit).toLocaleString()}<span style="font-size:11px;font-weight:500;opacity:0.7">/day</span>
+            ${profit >= 0 ? '+' : '-'}${formatCurrency(Math.abs(Math.round(profit)))}<span style="font-size:11px;font-weight:500;opacity:0.7">/day</span>
           </span>
         </div>
         <div style="display:flex;gap:12px;padding:6px 0;color:var(--text-faint);font-size:11px;justify-content:flex-end">
-          <span>👥 ${G.agents.length} staff</span>
-          <span>📁 ${G.projects.filter(p => p.state === 'in_progress').length} active</span>
+          <span>👥 ${t('employee.staffCount', { count: formatNumber(G.agents.length) })}</span>
+          <span>📁 ${t('employee.activeCount', { count: formatNumber(G.projects.filter(p => p.state === 'in_progress').length) })}</span>
         </div>
         ${G.debt > 0 ? `
         <div style="border-top:1px solid rgba(224,80,80,0.2);margin-top:4px;padding-top:6px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0">
             <span style="color:#e05050;font-weight:600">🏦 Debt</span>
-            <span style="color:#e05050;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums">$${G.debt.toLocaleString()}</span>
+            <span style="color:#e05050;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums">${formatCurrency(G.debt)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--text-faint);font-size:10px">
-            <span>Weekly interest (${Math.round(G.loanInterestRate * 100)}%)</span>
-            <span style="color:#e0a030;font-weight:600">+$${Math.round(G.debt * G.loanInterestRate).toLocaleString()}</span>
+            <span>${t('employee.weeklyInterest', { percent: formatNumber(Math.round(G.loanInterestRate * 100)) })}</span>
+            <span style="color:#e0a030;font-weight:600">+${formatCurrency(Math.round(G.debt * G.loanInterestRate))}</span>
           </div>
         </div>` : ''}
       </div>

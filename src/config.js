@@ -1030,20 +1030,6 @@ export const ANALYTICS_LEVELS = {
   3: { name: 'Full Insight',  description: 'Full funnel analysis with projections.' },
 };
 
-// ─── Tutorial hints ────────────────────────────────────────
-export const TUTORIAL_HINTS = [
-  { trigger: 'start',      text: 'Welcome! Click the Build button to start placing rooms.' },
-  { trigger: 'first_room', text: 'Great! Now hire an agent to work in your new office.' },
-  { trigger: 'first_hire', text: null }, // dynamic — set at runtime per company type
-  { trigger: 'first_project', text: 'Projects are coming in! Watch your agents work and manage your cash flow.' },
-  { trigger: 'low_mood',   text: 'Your agents look tired. Build a Break Room to let them recharge!' },
-  { trigger: 'low_energy', text: 'An agent is running low on energy! They\'ll be forced to rest soon. Build a Break Room for faster recovery.' },
-  { trigger: 'low_motivation', text: 'An agent\'s motivation is dropping! Set up Perks (Break Room) or give a raise to keep them happy.' },
-  { trigger: 'stalled',    text: 'Projects are stalling! Hire more agents for the right departments.' },
-  { trigger: 'low_alignment', text: 'Team alignment is low! Click on the CEO and run Team Building in the Meeting Room to get everyone on the same page.' },
-  { trigger: 'analytics',  text: 'Build a Data Lab and hire an analyst to see your business metrics!' },
-];
-
 // ─── Equipment configuration options ─────────────────────
 export const EQUIPMENT_CONFIGS = {
   sales_pricing: {
@@ -1397,4 +1383,3 @@ export const GROWTH_MODELS = {
   staffing_agency: { model: 'linear',       label: 'Placement Growth' },
   fashion_retail:  { model: 'physical',     label: 'Retail Growth' },
 };
-

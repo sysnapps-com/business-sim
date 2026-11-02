@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { G } from '../game.js';
+import { formatNumber, t } from '../i18n/index.js';
 
 const chartTargets = [];
 
@@ -27,7 +28,7 @@ function drawChart(canvas, ctx) {
     ctx.fillStyle = '#665848';
     ctx.font = '11px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('Cashflow data appears after Day 2', canvas.width / 2, canvas.height / 2);
+    ctx.fillText(t('chart.cashflowAfterDayTwo'), canvas.width / 2, canvas.height / 2);
     return;
   }
 
@@ -119,16 +120,16 @@ function drawChart(canvas, ctx) {
   ctx.textAlign = 'center';
   const xLabelEvery = Math.max(1, Math.ceil(data.length / 6));
   for (let i = 0; i < data.length; i += xLabelEvery) {
-    ctx.fillText(`D${data[i].day}`, xScale(i), H - 4);
+    ctx.fillText(t('chart.dayShort', { day: formatNumber(data[i].day) }), xScale(i), H - 4);
   }
 
   // Legend
   ctx.font = '9px system-ui';
   ctx.textAlign = 'left';
   const legends = [
-    { label: 'Cash', color: '#f0a050' },
-    { label: 'Revenue', color: '#50c878' },
-    { label: 'Costs', color: '#e05050' },
+    { label: t('chart.cash'), color: '#f0a050' },
+    { label: t('chart.revenue'), color: '#50c878' },
+    { label: t('chart.costs'), color: '#e05050' },
   ];
   let lx = pad.left;
   for (const l of legends) {
@@ -141,7 +142,7 @@ function drawChart(canvas, ctx) {
 }
 
 function formatShort(val) {
-  if (Math.abs(val) >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
-  if (Math.abs(val) >= 1000) return '$' + (val / 1000).toFixed(1) + 'K';
-  return '$' + Math.round(val);
+  if (Math.abs(val) >= 1000000) return '$' + formatNumber(val / 1000000, { maximumFractionDigits: 1 }) + 'M';
+  if (Math.abs(val) >= 1000) return '$' + formatNumber(val / 1000, { maximumFractionDigits: 1 }) + 'K';
+  return '$' + formatNumber(Math.round(val));
 }
