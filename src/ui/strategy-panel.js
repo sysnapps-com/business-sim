@@ -11,11 +11,12 @@ import {
   getDiversificationCost, getDiversificationSynergyBonus,
 } from '../economy.js';
 import { showToast } from './toast.js';
+import { formatCurrency, formatNumber, t, translateLabel } from '../i18n/index.js';
 
 let strategyEl = null;
 
 function money(n) {
-  return `$${Math.round(n || 0).toLocaleString()}`;
+  return formatCurrency(Math.round(n || 0));
 }
 
 function getBusinessIdentity() {
@@ -24,11 +25,11 @@ function getBusinessIdentity() {
     const gm = GROWTH_MODELS[G.companyType];
     const gmBadge = gm ? ` · <span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(80,144,224,0.15);color:#80b8e8;border:1px solid rgba(80,144,224,0.3)">${gm.label}</span>` : '';
     return {
-      title: `${companyDef.icon} ${companyDef.name}${gmBadge}`,
+      title: `${companyDef.icon} ${translateLabel(`content.companies.${G.companyType}.name`, companyDef.name)}${gmBadge}`,
       subtitle: companyDef.tagline,
     };
   }
-  return { title: 'Unfocused Startup', subtitle: 'Build your first office to define your business model.' };
+  return { title: t('strategy.unfocused'), subtitle: t('strategy.defineModel') };
 }
 
 function buildMoneyDrivers() {
@@ -54,20 +55,20 @@ function buildMoneyDrivers() {
       // Diversification status
       let diversifyHtml = '';
       if (G.remodelingOffices[key] > 0) {
-        diversifyHtml = `<div style="font-size:10px;color:var(--warning);margin-top:2px">🏗️ Remodeling (${G.remodelingOffices[key]} day${G.remodelingOffices[key] > 1 ? 's' : ''} left)</div>`;
+        diversifyHtml = `<div style="font-size:10px;color:var(--warning);margin-top:2px">${t('strategy.remodeling', { days: formatNumber(G.remodelingOffices[key]) })}</div>`;
       } else if (G.diversifiedOffices.has(key)) {
-        diversifyHtml = `<div style="font-size:10px;color:#50c878;margin-top:2px">⚡ Diversified to Delivery</div>`;
+        diversifyHtml = `<div style="font-size:10px;color:#50c878;margin-top:2px">${t('strategy.diversified')}</div>`;
       } else if (hasDiversifyBranch() && canDiversifyOffice(key)) {
         const cost = getDiversificationCost(key);
-        diversifyHtml = `<button class="diversify-btn" data-office="${key}" style="font-size:10px;padding:2px 8px;margin-top:3px;cursor:pointer;background:rgba(80,200,120,0.15);border:1px solid rgba(80,200,120,0.4);border-radius:4px;color:#89dca5">🔀 Diversify ($${cost.toLocaleString()})</button>`;
+        diversifyHtml = `<button class="diversify-btn" data-office="${key}" style="font-size:10px;padding:2px 8px;margin-top:3px;cursor:pointer;background:rgba(80,200,120,0.15);border:1px solid rgba(80,200,120,0.4);border-radius:4px;color:#89dca5">${t('strategy.diversify', { amount: formatCurrency(cost) })}</button>`;
       }
 
       html += `
         <div class="strategy-row">
-          <div class="strategy-row-main">${room.type.icon} ${room.type.name}</div>
+          <div class="strategy-row-main">${room.type.icon} ${translateLabel(`content.offices.${key}`, room.type.name)}</div>
           <div class="strategy-row-meta">${guide.role}</div>
           <div class="strategy-row-sub">${guide.impact}</div>
-          <div class="strategy-row-stats">Earned ${money(earned)} · Active ${active}</div>
+          <div class="strategy-row-stats">${t('strategy.earned')} ${money(earned)} · ${t('strategy.active')} ${formatNumber(active)}</div>
           ${diversifyHtml}
         </div>
       `;
@@ -77,10 +78,10 @@ function buildMoneyDrivers() {
   // Diversification synergy summary
   const synergy = getDiversificationSynergyBonus();
   if (synergy.payBonus > 0) {
-    html += `<div style="font-size:10px;padding:4px 6px;margin-top:6px;background:rgba(80,200,120,0.1);border:1px solid rgba(80,200,120,0.25);border-radius:4px;color:#89dca5">🤝 Delivery Synergy: ${synergy.label}</div>`;
+    html += `<div style="font-size:10px;padding:4px 6px;margin-top:6px;background:rgba(80,200,120,0.1);border:1px solid rgba(80,200,120,0.25);border-radius:4px;color:#89dca5">${t('strategy.deliverySynergy')}: ${synergy.label}</div>`;
   }
 
-  return html || '<div class="strategy-empty">No money drivers yet. Build your first office.</div>';
+  return html || `<div class="strategy-empty">${t('strategy.noDrivers')}</div>`;
 }
 
 function getTechTreeRows() {
@@ -91,7 +92,7 @@ function getTechTreeRows() {
       const bgColor = node.unlocked ? 'rgba(80,200,120,0.1)' : node.excluded ? 'rgba(224,80,80,0.08)' : node.canChoose ? 'rgba(224,160,48,0.1)' : '';
       const borderColor = node.unlocked ? 'rgba(80,200,120,0.3)' : node.excluded ? 'rgba(224,80,80,0.2)' : node.canChoose ? 'rgba(224,160,48,0.3)' : '';
       const chooseBtn = node.canChoose
-        ? `<button class="branch-choose-btn" data-branch="${node.key}" style="font-size:10px;padding:3px 10px;margin-top:4px;cursor:pointer;background:rgba(224,160,48,0.2);border:1px solid rgba(224,160,48,0.5);border-radius:4px;color:#f0c040">Choose This Path ($${node.cost.toLocaleString()})</button>`
+        ? `<button class="branch-choose-btn" data-branch="${node.key}" style="font-size:10px;padding:3px 10px;margin-top:4px;cursor:pointer;background:rgba(224,160,48,0.2);border:1px solid rgba(224,160,48,0.5);border-radius:4px;color:#f0c040">${t('strategy.choosePath', { amount: formatCurrency(node.cost) })}</button>`
         : '';
       return `
         <div class="tech-node ${node.unlocked ? 'done' : ''}" style="background:${bgColor};border:1px solid ${borderColor};border-radius:6px;padding:6px 8px;margin:4px 0">
@@ -114,7 +115,7 @@ function getTechTreeRows() {
 function getSourceMixSummary() {
   const recent = (G.completedLog || []).slice(0, 10);
   if (recent.length === 0) {
-    return 'Last 10 sources: no completed projects yet.';
+    return t('strategy.lastSources') + ` ${t('strategy.noCompleted')}`;
   }
 
   const counts = { paid: 0, organic: 0, referral: 0 };
@@ -125,38 +126,38 @@ function getSourceMixSummary() {
 
   const total = recent.length;
   const pct = n => Math.round((n / total) * 100);
-  return `Last ${total} sources: 📣 Paid ${pct(counts.paid)}% · 🌿 Organic ${pct(counts.organic)}% · 🤝 Referral ${pct(counts.referral)}%`;
+  return `${t('strategy.lastSources', { count: formatNumber(total) })} 📣 ${t('strategy.paid')} ${formatNumber(pct(counts.paid))}% · 🌿 ${t('strategy.sourceOrganic')} ${formatNumber(pct(counts.organic))}% · 🤝 ${t('employee.referral')} ${formatNumber(pct(counts.referral))}%`;
 }
 
 function getBottleneckDiagnosis() {
-  if (G.agents.length === 0) return { state: 'blocked', text: 'No team yet. Hire your first agent.' };
+  if (G.agents.length === 0) return { state: 'blocked', text: t('strategy.noTeam') };
 
   const hasTrafficOffice = getRoomInstances().some(r =>
     ['content', 'sales', 'marketing', 'seo'].includes(r.typeKey)
   );
   if (!hasTrafficOffice) {
-    return { state: 'blocked', text: 'No traffic source. Build Marketing HQ, Content, or Sales.' };
+    return { state: 'blocked', text: t('strategy.noTraffic') };
   }
 
   const staffCount = G.agents.filter(a => a.roleKey !== 'ceo').length;
   if (staffCount === 0) {
-    return { state: 'blocked', text: 'No delivery staff. Hire specialists for built offices.' };
+    return { state: 'blocked', text: t('strategy.noDelivery') };
   }
 
   if ((G.metrics.totalVisitors || 0) < 20) {
-    return { state: 'warn', text: 'Traffic bottleneck. Build Marketing HQ or improve organic.' };
+    return { state: 'warn', text: t('strategy.trafficBottleneck') };
   }
   if ((G.metrics.leads || 0) < 0.5) {
-    return { state: 'warn', text: 'Lead bottleneck. Improve content/design conversion quality.' };
+    return { state: 'warn', text: t('strategy.leadBottleneck') };
   }
   if ((G.metrics.salesCapacity || 0) < 0.2) {
-    return { state: 'warn', text: 'Sales bottleneck. Hire Sales or increase marketing leverage.' };
+    return { state: 'warn', text: t('strategy.salesBottleneck') };
   }
   if ((G.metrics.clients || 0) < 0.2) {
-    return { state: 'warn', text: 'Pipeline is warming up. Keep speed up and monitor inflow.' };
+    return { state: 'warn', text: t('strategy.pipelineWarming') };
   }
 
-  return { state: 'ok', text: 'Pipeline healthy. Expect regular project inflow.' };
+  return { state: 'ok', text: t('strategy.healthyPipeline') };
 }
 
 export function initStrategyPanel() {
@@ -172,8 +173,8 @@ export function updateStrategyPanel() {
   const actual = G.metrics.clients ?? 0;
   const capacity = G.metrics.salesCapacity ?? 0;
   const balanceNote = balance < 70
-    ? 'GTM bottleneck: add Sales/Marketing or reduce delivery headcount.'
-    : 'Healthy GTM/Delivery balance.';
+    ? t('strategy.bottleneckBalance')
+    : t('strategy.healthyBalance');
   const bottleneck = getBottleneckDiagnosis();
   const bottleneckColor = bottleneck.state === 'ok'
     ? 'var(--success)'
@@ -181,22 +182,24 @@ export function updateStrategyPanel() {
   const sourceMix = getSourceMixSummary();
   strategyEl.innerHTML = `
     <div class="strategy-card">
-      <h4>Business Identity</h4>
+      <h4>${t('strategy.identity')}</h4>
       <div class="strategy-business">${identity.title}</div>
       <div class="strategy-note">${identity.subtitle}</div>
     </div>
 
     <div class="strategy-card">
-      <h4>What Makes Money</h4>
-      <div class="strategy-note">Potential clients/day: ${potential.toFixed(1)} · Sales capacity/day: ${capacity.toFixed(1)} · Actual projects/day: ${actual.toFixed(1)}</div>
-      <div class="strategy-note">GTM balance: ${balance}% · ${balanceNote}</div>
-      <div class="strategy-note" style="margin-top:6px;color:${bottleneckColor}">Diagnosis: ${bottleneck.text}</div>
+      <h4>${t('strategy.makesMoney')}</h4>
+      <div class="strategy-note">${t('strategy.potential', {
+        potential: formatNumber(potential), capacity: formatNumber(capacity), actual: formatNumber(actual),
+      })}</div>
+      <div class="strategy-note">${t('strategy.gtmBalance', { balance: formatNumber(balance), note: balanceNote })}</div>
+      <div class="strategy-note" style="margin-top:6px;color:${bottleneckColor}">${t('strategy.diagnosisLine', { text: bottleneck.text })}</div>
       <div class="strategy-note" style="margin-top:4px">${sourceMix}</div>
       ${buildMoneyDrivers()}
     </div>
 
     <div class="strategy-card">
-      <h4>Tech Tree</h4>
+      <h4>${t('strategy.techTree')}</h4>
       ${getTechTreeRows()}
     </div>
   `;
@@ -207,12 +210,12 @@ export function updateStrategyPanel() {
       const branchKey = btn.dataset.branch;
       const success = chooseTechBranch(branchKey);
       if (success) {
-        const labels = { specialize: 'Specialize', diversify_branch: 'Diversify', scale_ops: 'Scale Ops' };
-        showToast(`🎯 Branch chosen: ${labels[branchKey] || branchKey}!`);
+        const labelKeys = { specialize: 'specialize', diversify_branch: 'diversifyBranch', scale_ops: 'scaleOps' };
+        showToast(t('strategy.branchChosen', { branch: labelKeys[branchKey] ? t(`strategy.${labelKeys[branchKey]}`) : branchKey }));
         G.uiDirty = true;
         updateStrategyPanel();
       } else {
-        showToast('Cannot choose this branch — check requirements or funds.');
+        showToast(t('strategy.cannotChoose'));
       }
     });
   });
@@ -222,14 +225,17 @@ export function updateStrategyPanel() {
     btn.addEventListener('click', () => {
       const officeKey = btn.dataset.office;
       if (!canDiversifyOffice(officeKey)) {
-        showToast('Cannot diversify this office.');
+        showToast(t('strategy.cannotDiversify'));
         return;
       }
       const cost = getDiversificationCost(officeKey);
       G.money -= cost;
       G.remodelingOffices[officeKey] = DIVERSIFICATION_CONFIG.remodelingDays;
       const roomDef = OFFICE_TYPES[officeKey];
-      showToast(`🏗️ ${roomDef?.name || officeKey} is being remodeled to Delivery (${DIVERSIFICATION_CONFIG.remodelingDays} days)`);
+      showToast(t('strategy.remodelingToast', {
+        office: translateLabel(`content.offices.${officeKey}`, roomDef?.name || officeKey),
+        days: formatNumber(DIVERSIFICATION_CONFIG.remodelingDays),
+      }));
       G.uiDirty = true;
       updateStrategyPanel();
     });

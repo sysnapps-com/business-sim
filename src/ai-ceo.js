@@ -16,6 +16,7 @@ import { getActivePlan, getAllExpansions, isExpansionAvailable, isExpansionPurch
 import { MAP_W, MAP_H } from './config.js';
 import { sfxBuild } from './sfx.js';
 import { setSpeed } from './ui/speed.js';
+import { formatCurrency, formatNumber, t, translateLabel } from './i18n/index.js';
 
 // ─── State ──────────────────────────────────────────────
 let aiEnabled = false;
@@ -31,10 +32,10 @@ export function isAiCeoEnabled() { return aiEnabled; }
 export function toggleAiCeo() {
   aiEnabled = !aiEnabled;
   if (aiEnabled) {
-    showToast('🤖 AI CEO activated! Sit back and enjoy.');
+    showToast(t('toast.aiActivated'));
     if (G.gameSpeed < 2) setSpeed(2);
   } else {
-    showToast('🤖 AI CEO deactivated. You\'re in control.');
+    showToast(t('toast.aiDeactivated'));
   }
   return aiEnabled;
 }
@@ -135,7 +136,9 @@ function handleRaises() {
         a.wantsRaise = false;
         a.raiseDeadline = 0;
         a.motivation = Math.min(1.0, a.motivation + 0.3);
-        showToast(`🤖 AI CEO gave ${a.name} a raise: $${currentSalary} → $${newSalary}/day`);
+        showToast(t('toast.aiRaise', {
+          name: a.name, oldSalary: formatCurrency(currentSalary), newSalary: formatCurrency(newSalary),
+        }));
         return true;
       }
     }
@@ -162,7 +165,7 @@ function handleEquipment() {
 
   if (G.equipmentConfig.coffee_quality === 'instant' && G.money > 3000 && countRoomsByType('breakroom') > 0) {
     G.equipmentConfig.coffee_quality = 'espresso';
-    showToast('🤖 AI CEO upgraded to espresso machine!');
+    showToast(t('toast.aiCoffee'));
     changed = true;
   }
 
@@ -173,7 +176,7 @@ function handleEquipment() {
 
   if (G.equipmentConfig.sales_pricing === 'standard' && G.reputation > 60 && countRoomsByType('sales') > 0) {
     G.equipmentConfig.sales_pricing = 'premium';
-    showToast('🤖 AI CEO switched to premium pricing!');
+    showToast(t('toast.aiPremiumPricing'));
     changed = true;
   }
 
@@ -181,15 +184,15 @@ function handleEquipment() {
   if (countRoomsByType('shopfront') > 0 && G.equipmentConfig.pricing_strategy !== undefined) {
     if (G.equipmentConfig.pricing_strategy === 'standard' && G.reputation < 50) {
       G.equipmentConfig.pricing_strategy = 'discount';
-      showToast('🤖 AI CEO set discount pricing for more foot traffic!');
+      showToast(t('toast.aiDiscountPricing'));
       changed = true;
     } else if (G.equipmentConfig.pricing_strategy === 'discount' && G.reputation > 65) {
       G.equipmentConfig.pricing_strategy = 'standard';
-      showToast('🤖 AI CEO switched to standard pricing — reputation is strong!');
+      showToast(t('toast.aiStandardPricing'));
       changed = true;
     } else if (G.equipmentConfig.pricing_strategy === 'standard' && G.reputation > 80 && G.totalRevenue > 30000) {
       G.equipmentConfig.pricing_strategy = 'premium';
-      showToast('🤖 AI CEO switched to premium pricing — fashion brand established!');
+      showToast(t('toast.aiFashionPricing'));
       changed = true;
     }
   }
@@ -336,7 +339,7 @@ function handleExpansions() {
         }
       }
 
-      showToast(`🤖 AI CEO expanded: ${exp.name}! -$${cost.toLocaleString()} (50% off)`);
+      showToast(t('toast.aiExpand', { name: exp.name, amount: formatCurrency(cost) }));
       corridorBudgetUsed = 0;
       return true;
     }
@@ -446,7 +449,10 @@ function handleBuilding() {
         connectRoomToCorridor(room);
         ensureRoomReachable(room);
         sfxBuild();
-        showToast(`🤖 AI CEO built ${def.icon} ${def.name}! -$${cost.toLocaleString()}`);
+        showToast(t('toast.aiBuildRoom', {
+          name: `${def.icon} ${translateLabel(`content.offices.${target}`, def.name)}`,
+          amount: formatCurrency(cost),
+        }));
         lastBuildAttemptTick = G.gameTick;
         G.uiDirty = true;
         return true;
@@ -646,7 +652,7 @@ function ensureRoomReachable(room) {
   }
 
   if (painted > 0) {
-    showToast(`🤖 AI CEO built ${painted} corridor tiles to connect the new room.`);
+    showToast(t('toast.aiCorridors', { count: formatNumber(painted) }));
   }
 }
 
@@ -720,7 +726,7 @@ function handleTechTree() {
   for (const branch of preferred) {
     if (G.techTreeBranches.includes(branch)) continue;
     if (chooseTechBranch(branch)) {
-      showToast(`🤖 AI CEO chose tech branch: ${branch}!`);
+      showToast(t('toast.aiBranch', { branch }));
       return true;
     }
   }
@@ -732,7 +738,7 @@ function handleLoan() {
   if (G.money < 500 && G.money > -2000 && G.projects.length > 0 && G.loanCount < 3) {
     const loanAmount = 5000;
     G.takeLoan(loanAmount);
-    showToast(`🤖 AI CEO took a $${loanAmount.toLocaleString()} loan to stay afloat.`);
+    showToast(t('toast.aiLoan', { amount: formatCurrency(loanAmount) }));
     return true;
   }
   return false;

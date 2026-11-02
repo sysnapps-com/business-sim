@@ -16,6 +16,7 @@ import {
   getActivePlan,
 } from '../floorplan.js';
 import { showToast } from './toast.js';
+import { formatCurrency, formatNumber, t, translateLabel } from '../i18n/index.js';
 import { sfxBuild, sfxError } from '../sfx.js';
 import {
   rollCandidatesForRole,
@@ -52,15 +53,15 @@ function renderRoomButton(key, def) {
   const lockClass = unlock.unlocked ? '' : 'locked';
   const disabledClass = canAfford ? '' : 'disabled';
   const roleText = unlock.unlocked
-    ? `${OFFICE_GUIDE[key]?.role || 'Utility'} · ${OFFICE_GUIDE[key]?.impact || 'Supports your company operations.'}`
-    : `🔒 ${unlock.requirement} (${unlock.progress})`;
+    ? `${OFFICE_GUIDE[key]?.role || t('build.utility')} · ${OFFICE_GUIDE[key]?.impact || t('build.supportsOperations')}`
+    : t('build.locked', { requirement: unlock.requirement, progress: unlock.progress });
 
   return `
     <button class="room-btn ${disabledClass} ${lockClass}" data-room="${key}">
       <span class="room-icon">${def.icon}</span>
       <span class="room-info">
-        <span class="room-name">${def.name}</span>
-        <span class="room-cost ${canAfford ? '' : 'too-expensive'}">$${cost.toLocaleString()}${count > 0 ? ` (${count})` : ''}</span>
+        <span class="room-name">${translateLabel(`content.offices.${key}`, def.name)}</span>
+        <span class="room-cost ${canAfford ? '' : 'too-expensive'}">${formatCurrency(cost)}${count > 0 ? ` (${formatNumber(count)})` : ''}</span>
         <span class="room-role">${roleText}</span>
       </span>
     </button>
@@ -72,18 +73,18 @@ function renderBuildSection() {
   const corridorActive = isCorridorMode() ? 'selected' : '';
 
   // Corridor tool at top
-  let html = `<div class="build-section"><h3>🏗️ Build</h3><div class="room-catalog">`;
+  let html = `<div class="build-section"><h3>${t('build.title')}</h3><div class="room-catalog">`;
   html += `
     <button class="room-btn corridor-tool ${corridorActive}" data-corridor="true">
       <span class="room-icon">🚶</span>
       <span class="room-info">
-        <span class="room-name">Corridor</span>
-        <span class="room-cost">Free — click & drag</span>
-        <span class="room-role">Paint walkways for your agents. Rooms need corridors next to them.</span>
+        <span class="room-name">${t('build.corridor')}</span>
+        <span class="room-cost">${t('build.corridorCost')}</span>
+        <span class="room-role">${t('build.corridorDesc')}</span>
       </span>
     </button>
   `;
-  html += `<div class="build-category-header">🏢 Rooms</div>`;
+  html += `<div class="build-category-header">${t('build.rooms')}</div>`;
 
   for (const [catKey, cat] of Object.entries(getOfficeCategoriesForCompany())) {
     const roomsInCat = cat.offices.filter(key => {
@@ -93,7 +94,7 @@ function renderBuildSection() {
     });
     if (roomsInCat.length === 0) continue;
 
-    html += `<div class="build-category-header">${cat.icon} ${cat.label}</div>`;
+    html += `<div class="build-category-header">${cat.icon} ${translateLabel(`content.officeCategories.${catKey}`, cat.label)}</div>`;
     for (const key of roomsInCat) {
       html += renderRoomButton(key, allRooms[key]);
     }
@@ -105,21 +106,21 @@ function renderBuildSection() {
   const expansions = getAllExpansions();
   const availableExps = expansions.filter(e => !isExpansionPurchased(e.id));
   if (availableExps.length > 0) {
-    html += `<div class="build-section"><h3>🗺️ Expand Land</h3><div class="room-catalog">`;
+    html += `<div class="build-section"><h3>${t('build.expandLand')}</h3><div class="room-catalog">`;
     for (const exp of availableExps) {
       const canAfford = G.money >= exp.cost;
       const locked = exp.requires && !isExpansionPurchased(exp.requires);
       const disabledClass = !canAfford || locked ? 'disabled' : '';
       const lockClass = locked ? 'locked' : '';
       const statusText = locked
-        ? `🔒 Requires another expansion first`
-        : `${exp.w}×${exp.h} tiles of buildable land`;
+        ? t('build.lockedExpansion')
+        : t('build.landTiles', { w: exp.w, h: exp.h });
       html += `
         <button class="room-btn ${disabledClass} ${lockClass}" data-expansion="${exp.id}">
           <span class="room-icon">🗺️</span>
           <span class="room-info">
-            <span class="room-name">${exp.name}</span>
-            <span class="room-cost ${canAfford ? '' : 'too-expensive'}">$${exp.cost.toLocaleString()}</span>
+            <span class="room-name">${translateLabel(`content.expansions.${exp.id}`, exp.name)}</span>
+            <span class="room-cost ${canAfford ? '' : 'too-expensive'}">${formatCurrency(exp.cost)}</span>
             <span class="room-role">${statusText}</span>
           </span>
         </button>
@@ -131,13 +132,13 @@ function renderBuildSection() {
   // ─── Marketing Budget ───
   html += `
     <div class="build-section">
-      <h3>📣 Marketing Budget</h3>
+      <h3>${t('build.marketingBudget')}</h3>
       <div class="budget-control">
         <input type="range" id="budget-slider" min="0" max="500" step="10" value="${G.marketingBudget}">
         <div class="budget-display">
-          <span class="budget-amount">$${G.marketingBudget}/day</span>
+          <span class="budget-amount">${formatCurrency(G.marketingBudget)}/day</span>
         </div>
-        <div class="budget-hint">Spend on ads to attract more clients</div>
+        <div class="budget-hint">${t('build.adsHint')}</div>
       </div>
     </div>
   `;
@@ -162,17 +163,17 @@ function renderCandidateCards(key, role, candidates) {
           <span class="candidate-name" style="display:flex;align-items:center;gap:6px">${avatarImg} ${c.name}</span>
           <span class="candidate-eff">Eff ${c.efficiency}x</span>
         </div>
-        <div class="candidate-meta" style="color:${tierColor}">${stars} ${tier.label}</div>
-        <div class="candidate-meta">Skill ${Math.round(c.skill * 100)}% · Mood ${Math.round(c.mood * 100)}% · <span style="color:${c.iq >= 1.3 ? '#f0d050' : c.iq >= 1.0 ? '#b0c8e8' : 'var(--text-dim)'}">🧠 ${getIQLabel(c.iq).label}</span></div>
-        <div class="candidate-meta">Salary $${c.salary}/day · Signing $${c.signingCost}</div>
+        <div class="candidate-meta" style="color:${tierColor}">${stars} ${translateLabel(`content.seniority.${tier.label.toLowerCase()}`, tier.label)}</div>
+        <div class="candidate-meta">${t('build.skill')} ${formatNumber(Math.round(c.skill * 100))}% · ${t('build.candidateMood')} ${formatNumber(Math.round(c.mood * 100))}% · <span style="color:${c.iq >= 1.3 ? '#f0d050' : c.iq >= 1.0 ? '#b0c8e8' : 'var(--text-dim)'}">🧠 ${translateLabel(`content.iq.${getIQLabel(c.iq).label.toLowerCase()}`, getIQLabel(c.iq).label)}</span></div>
+        <div class="candidate-meta">${t('build.salary', { amount: formatCurrency(c.salary), signing: formatCurrency(c.signingCost) })}</div>
         <button class="candidate-hire-btn" data-role="${key}" data-candidate-id="${c.id}">
-          Hire Candidate
+          ${t('build.hireCandidate')}
         </button>
       </div>
     `;
   }
   html += `
-    <button class="candidate-reroll-btn" data-role="${key}">🔄 Roll New Candidates</button>
+    <button class="candidate-reroll-btn" data-role="${key}">${t('build.rollCandidates')}</button>
   </div>`;
   return html;
 }
@@ -184,7 +185,7 @@ function renderHireSection() {
   const founderBootstrap = !hrBuilt && nonCeoHeadcount < 3;
   let html = `
     <div class="build-section">
-      <h3>👤 Hire Staff <span class="hire-cost">${hrActive ? '👥 HR producing candidates' : founderBootstrap ? '🧭 Founder hiring available (first 3 hires)' : hrBuilt ? '👥 Hire an HR Manager first' : '🏗️ Build HR Office to recruit at scale'}</span></h3>
+      <h3>${t('build.hireStaff')} <span class="hire-cost">${hrActive ? t('build.hrProducing') : founderBootstrap ? t('build.founderHiring') : hrBuilt ? t('build.hireHrFirst') : t('build.buildHr')}</span></h3>
       <div class="hire-catalog">
   `;
 
@@ -201,8 +202,8 @@ function renderHireSection() {
       <button class="hire-btn ${active}" data-role="${key}">
         <span class="hire-emoji">${role.emoji}</span>
         <span class="hire-info">
-          <span class="hire-title">${role.title}${hasCandidates ? ` <span style="color:var(--success);font-size:10px">● ${candidates.length} ready</span>` : ''}</span>
-          <span class="hire-salary">Base $${salary}/day${count > 0 ? ` · ${count} hired` : ''}</span>
+          <span class="hire-title">${translateLabel(`content.roles.${key}`, role.title)}${hasCandidates ? ` <span style="color:var(--success);font-size:10px">● ${t('build.ready', { count: formatNumber(candidates.length) })}</span>` : ''}</span>
+          <span class="hire-salary">${t('build.baseSalary', { amount: formatCurrency(salary) })}${count > 0 ? ` · ${t('build.hiredCount', { count: formatNumber(count) })}` : ''}</span>
         </span>
       </button>
     `;
@@ -219,13 +220,13 @@ function renderHireSection() {
         const hasOffice = countRoomsByType(role.office) > 0;
         html += `<div class="candidate-list">`;
         if (!hasOffice) {
-          html += `<div class="recruitment-status">🏗️ Build ${OFFICE_TYPES[role.office]?.name || 'office'} first</div>`;
+          html += `<div class="recruitment-status">${t('build.buildOfficeFirst', { name: translateLabel(`content.offices.${role.office}`, OFFICE_TYPES[role.office]?.name || 'office') })}</div>`;
         } else if (!hrBuilt) {
-          html += `<div class="recruitment-status">🧭 Founder hiring finished. Build an HR Office to keep recruiting.</div>`;
+          html += `<div class="recruitment-status">${t('build.founderHiringFinished')}</div>`;
         } else if (!hrActive) {
-          html += `<div class="recruitment-status">👥 Hire an HR Manager — they'll find candidates</div>`;
+          html += `<div class="recruitment-status">${t('build.hireHrManager')}</div>`;
         } else {
-          html += `<div class="recruitment-status">⏳ HR is working — candidates arrive after Hiring Rounds</div>`;
+          html += `<div class="recruitment-status">${t('build.hrWorking')}</div>`;
         }
         html += `</div>`;
       }
@@ -252,7 +253,7 @@ export function renderBuildPanel() {
         if (!exp) return;
         if (G.money < exp.cost) {
           sfxError();
-          showToast(`Not enough funds! Need $${exp.cost.toLocaleString()}`);
+          showToast(t('toast.notEnoughFunds', { amount: formatCurrency(exp.cost) }));
           return;
         }
         G.money -= exp.cost;
@@ -299,7 +300,10 @@ export function renderBuildPanel() {
         }
 
         sfxBuild();
-        showToast(`Expanded: ${exp.name}! -$${exp.cost.toLocaleString()}`);
+        showToast(t('toast.expanded', {
+          name: translateLabel(`content.expansions.${exp.id}`, exp.name),
+          amount: formatCurrency(exp.cost),
+        }));
         G.uiDirty = true;
         renderBuildPanel();
       });
@@ -367,7 +371,7 @@ export function renderBuildPanel() {
     slider.addEventListener('input', (e) => {
       G.marketingBudget = parseInt(e.target.value, 10);
       const display = buildPanelEl.querySelector('.budget-amount');
-      if (display) display.textContent = `$${G.marketingBudget}/day`;
+      if (display) display.textContent = `${formatCurrency(G.marketingBudget)}/day`;
     });
   }
 

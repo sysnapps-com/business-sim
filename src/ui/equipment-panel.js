@@ -5,6 +5,7 @@
 import { EQUIPMENT_CONFIGS } from '../config.js';
 import { G } from '../game.js';
 import { toScreen, getZoom } from '../engine.js';
+import { t, translateLabel } from '../i18n/index.js';
 
 const panel = document.getElementById('equipment-panel');
 const titleEl = document.getElementById('eq-title');
@@ -32,24 +33,22 @@ export function showEquipmentPanel(furniture, room) {
 
   const config = EQUIPMENT_CONFIGS[furniture.configKey];
   if (!config) return;
+  currentFurniture = furniture;
 
   // For data lab items, show analytics info if we have it
   if (furniture.configKey === 'data_server' || furniture.configKey === 'data_monitor') {
     // Just show a message about analytics level
     currentConfigKey = null;
-    titleEl.innerHTML = `${config.icon || '📊'} ${config.label}`;
+    titleEl.innerHTML = `${config.icon || '📊'} ${translateLabel(`content.equipment.${furniture.configKey}.label`, config.label)}`;
 
     const level = G.analyticsLevel;
     const levelNames = ['No Data', 'Basic', 'Standard', 'Full Insight'];
     optionsEl.innerHTML = `
       <div style="padding: 8px 0; font-size: 12px; color: var(--text-dim)">
-        Analytics Level: <strong style="color: var(--accent)">${levelNames[level]}</strong>
+        ${t('equipment.analyticsLevel')}: <strong style="color: var(--accent)">${translateLabel(`content.equipment.levels.${level}`, levelNames[level])}</strong>
       </div>
       <div style="font-size: 11px; color: var(--text-faint); line-height: 1.6">
-        ${level === 0 ? 'Build a Data Lab and hire a Data Analyst.' :
-          level === 1 ? 'Hire a Data Analyst for better insights.' :
-          level === 2 ? 'Your analyst is gaining experience...' :
-          'Full analytics powered by your experienced analyst.'}
+        ${t(`equipment.analyticsHint.${level}`)}
       </div>
     `;
     effectEl.textContent = '';
@@ -59,9 +58,7 @@ export function showEquipmentPanel(furniture, room) {
   }
 
   currentConfigKey = furniture.configKey;
-  currentFurniture = furniture;
-
-  titleEl.innerHTML = `${config.icon || '⚙'} ${config.label}`;
+  titleEl.innerHTML = `${config.icon || '⚙'} ${translateLabel(`content.equipment.${furniture.configKey}.label`, config.label)}`;
 
   const currentValue = G.equipmentConfig[furniture.configKey] || config.default;
 
@@ -70,15 +67,17 @@ export function showEquipmentPanel(furniture, room) {
       <input type="radio" name="eq-${furniture.configKey}" value="${opt.key}"
         ${opt.key === currentValue ? 'checked' : ''}>
       <div>
-        <div class="eq-option-label">${opt.label}</div>
-        <div class="eq-option-desc">${opt.desc}</div>
+        <div class="eq-option-label">${translateLabel(`content.equipment.${furniture.configKey}.options.${opt.key}.label`, opt.label)}</div>
+        <div class="eq-option-desc">${translateLabel(`content.equipment.${furniture.configKey}.options.${opt.key}.description`, opt.desc)}</div>
       </div>
     </label>
   `).join('');
 
   // Effect description
   const selectedOpt = config.options.find(o => o.key === currentValue);
-  effectEl.textContent = selectedOpt ? `Currently: ${selectedOpt.desc}` : '';
+  effectEl.textContent = selectedOpt
+    ? `${t('hud.currently')}: ${translateLabel(`content.equipment.${furniture.configKey}.options.${selectedOpt.key}.description`, selectedOpt.desc)}`
+    : '';
 
   // Event listeners
   optionsEl.querySelectorAll('input[type="radio"]').forEach(radio => {
@@ -90,7 +89,9 @@ export function showEquipmentPanel(furniture, room) {
       });
       // Update effect text
       const newOpt = config.options.find(o => o.key === e.target.value);
-      effectEl.textContent = newOpt ? `Currently: ${newOpt.desc}` : '';
+      effectEl.textContent = newOpt
+        ? `${t('hud.currently')}: ${translateLabel(`content.equipment.${furniture.configKey}.options.${newOpt.key}.description`, newOpt.desc)}`
+        : '';
       G.uiDirty = true;
     });
   });
@@ -98,6 +99,10 @@ export function showEquipmentPanel(furniture, room) {
   positionPanel(furniture);
   panel.style.display = 'block';
 }
+
+globalThis.addEventListener('locale-change', () => {
+  if (currentFurniture) showEquipmentPanel(currentFurniture);
+});
 
 function positionPanel(furniture) {
   const s = toScreen(furniture.x, furniture.y);

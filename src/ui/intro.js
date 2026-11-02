@@ -4,6 +4,7 @@
 
 import { G } from '../game.js';
 import { getRoomInstances } from '../map.js';
+import { formatNumber, t } from '../i18n/index.js';
 
 let introEl = null;
 let hideTimer = null;
@@ -39,17 +40,17 @@ const LEVEL_THRESHOLDS = [
 
 // Stages: title + eyebrow keyed to computed level
 const LEVEL_STAGES = [
-  { max: 1,  title: 'The Garage',        eyebrow: 'Humble Beginnings' },
-  { max: 2,  title: 'First Steps',       eyebrow: 'Proving Ground' },
-  { max: 3,  title: 'Scrappy Startup',   eyebrow: 'Bootstrapping' },
-  { max: 4,  title: 'Growing Pains',     eyebrow: 'Scaling Up' },
-  { max: 5,  title: 'Real Business',     eyebrow: 'Getting Serious' },
-  { max: 6,  title: 'Market Traction',   eyebrow: 'Momentum' },
-  { max: 8,  title: 'Revenue Engine',    eyebrow: 'Firing On All Cylinders' },
-  { max: 10, title: 'Industry Player',   eyebrow: 'Making Waves' },
-  { max: 12, title: 'Growth Machine',    eyebrow: 'Hypergrowth' },
-  { max: 14, title: 'Market Leader',     eyebrow: 'Domination' },
-  { max: 99, title: 'Empire',            eyebrow: 'Legendary' },
+  { max: 1,  key: 'garage' },
+  { max: 2,  key: 'firstSteps' },
+  { max: 3,  key: 'scrappyStartup' },
+  { max: 4,  key: 'growingPains' },
+  { max: 5,  key: 'realBusiness' },
+  { max: 6,  key: 'marketTraction' },
+  { max: 8,  key: 'revenueEngine' },
+  { max: 10, key: 'industryPlayer' },
+  { max: 12, key: 'growthMachine' },
+  { max: 14, key: 'marketLeader' },
+  { max: 99, key: 'empire' },
 ];
 
 export function getCompanyLevel() {
@@ -105,39 +106,55 @@ const SUBTITLES_LATE = [
 ];
 
 function pickSubtitle(level) {
-  const pool = level <= 4 ? SUBTITLES_EARLY : level <= 10 ? SUBTITLES_GROWTH : SUBTITLES_LATE;
-  return pool[Math.floor(Math.random() * pool.length)];
+  const group = level <= 4 ? 'early' : level <= 10 ? 'growth' : 'late';
+  const pool = group === 'early' ? SUBTITLES_EARLY : group === 'growth' ? SUBTITLES_GROWTH : SUBTITLES_LATE;
+  const index = Math.floor(Math.random() * pool.length);
+  return t(`intro.subtitles.${group}.${index}`);
 }
 
 // Track last shown level so we only show the intro on actual level-ups
 let lastShownLevel = 0;
+let lastIntroArgs = null;
 
 export function showLevelIntro({ week, day, subtitle } = {}) {
+  lastIntroArgs = { week, day, subtitle };
+  renderLevelIntro(lastIntroArgs);
+}
+
+function renderLevelIntro({ week, day, subtitle } = {}, force = false) {
   if (!introEl) return;
 
   const level = getCompanyLevel();
 
   // Don't show if company hasn't actually leveled up since last intro
-  if (level <= lastShownLevel && !subtitle) return;
+  if (!force && level <= lastShownLevel && !subtitle) return;
   lastShownLevel = level;
 
   const stage = getStage(level);
-  const dayText = day ? `Week ${week} · Day ${day}` : '';
+  const dayText = day ? t('intro.weekDay', { week: formatNumber(week), day: formatNumber(day) }) : '';
   const sub = subtitle || pickSubtitle(level);
+  const stageText = t(`intro.stages.${stage.key}.title`);
+  const eyebrowText = t(`intro.stages.${stage.key}.eyebrow`);
 
   introEl.innerHTML = `
-    <div class="intro-eyebrow">${stage.eyebrow}</div>
-    <div class="intro-title">${stage.title}</div>
-    <div class="intro-level">Level ${level}</div>
+    <div class="intro-eyebrow">${eyebrowText}</div>
+    <div class="intro-title">${stageText}</div>
+    <div class="intro-level">${t('intro.level', { level: formatNumber(level) })}</div>
     <div class="intro-subtitle">${sub}</div>
     <div class="intro-meta">${dayText}</div>
-    <div class="intro-skip">Click to skip</div>
+    <div class="intro-skip">${t('intro.skip')}</div>
   `;
 
   introEl.classList.add('visible');
 
   if (hideTimer) clearTimeout(hideTimer);
   hideTimer = setTimeout(hideIntro, 2400);
+}
+
+export function refreshIntro() {
+  if (introEl?.classList.contains('visible') && lastIntroArgs) {
+    renderLevelIntro(lastIntroArgs, true);
+  }
 }
 
 export function hideIntro() {

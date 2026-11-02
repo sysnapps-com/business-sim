@@ -6,6 +6,7 @@ import { TILE_W, TILE_H, WALL_H } from '../config.js';
 import { getCtx, toScreen, getZoom } from '../engine.js';
 import { getRoomInstances } from '../map.js';
 import { allWallEdges } from '../rotation.js';
+import { translateLabel } from '../i18n/index.js';
 
 function getRoomCorner(room, cornerName) {
   switch (cornerName) {
@@ -354,7 +355,7 @@ export function drawBackWalls() {
     ctx.fillStyle = `rgba(255,255,255,${0.5 * wallAlpha})`;
     ctx.font = `${Math.max(9, 10 * zoom)}px system-ui`;
     ctx.textAlign = 'center';
-    ctx.fillText(`${room.type.icon} ${room.type.name}`, ls.x, ls.y - fullWH + 18 * zoom);
+    ctx.fillText(`${room.type.icon} ${translateLabel(`content.offices.${room.typeKey}`, room.type.name)}`, ls.x, ls.y - fullWH + 18 * zoom);
 
     // Ambient glow
     const gs = toScreen(room.x + room.w / 2, room.y + room.h / 2);

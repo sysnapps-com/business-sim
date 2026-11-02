@@ -7,6 +7,7 @@ import { G } from './game.js';
 import { showToast } from './ui/toast.js';
 import { countRoomsByType } from './map.js';
 import { ECONOMY } from './config.js';
+import { formatNumber, t, translateLabel } from './i18n/index.js';
 
 // ─── Event Definitions ──────────────────────────────────────
 // Each event has:
@@ -667,28 +668,28 @@ export function tickEventBuffs() {
     G.competitorDebuff.weeksLeft--;
     if (G.competitorDebuff.weeksLeft <= 0) {
       G.competitorDebuff = null;
-      showToast('⚔️ Competitor impact faded. Market normalized.');
+      showToast(t('event.toasts.competitorEnded'));
     }
   }
   if (G.marketBoom) {
     G.marketBoom.weeksLeft--;
     if (G.marketBoom.weeksLeft <= 0) {
       G.marketBoom = null;
-      showToast('📉 Market boom ended. Back to normal.');
+      showToast(t('event.toasts.marketBoomEnded'));
     }
   }
   if (G.viralBuff) {
     G.viralBuff.weeksLeft--;
     if (G.viralBuff.weeksLeft <= 0) {
       G.viralBuff = null;
-      showToast('📱 Viral buzz faded.');
+      showToast(t('event.toasts.viralEnded'));
     }
   }
   if (G.techBuff) {
     G.techBuff.weeksLeft--;
     if (G.techBuff.weeksLeft <= 0) {
       G.techBuff = null;
-      showToast('💡 Tech boost expired.');
+      showToast(t('event.toasts.techEnded'));
     }
   }
 }
@@ -698,13 +699,15 @@ export function tickDailyEventBuffs() {
   if (G.freeWorkerDaysLeft > 0) {
     G.freeWorkerDaysLeft--;
     if (G.freeWorkerDaysLeft <= 0) {
-      showToast('🤝 Sweat equity period ended. Engineer leaves.');
+      showToast(t('event.toasts.freeWorkerEnded'));
     }
   }
   if (G.floodedOffice) {
     G.floodedOffice.daysLeft--;
     if (G.floodedOffice.daysLeft <= 0) {
-      showToast(`🌊 ${G.floodedOffice.office} office dried out — back in business!`);
+      showToast(t('event.toasts.officeDried', {
+        office: translateLabel(`content.offices.${G.floodedOffice.office}`, G.floodedOffice.office),
+      }));
       G.floodedOffice = null;
     }
   }
@@ -750,7 +753,7 @@ function showEventModal(event) {
   const desc = typeof event.description === 'function' ? event.description() : event.description;
 
   document.getElementById('event-icon').textContent = event.icon;
-  document.getElementById('event-title').textContent = event.title;
+  document.getElementById('event-title').textContent = translateLabel(`event.titles.${event.id}`, event.title);
   document.getElementById('event-description').innerHTML = desc;
 
   const choicesEl = document.getElementById('event-choices');
@@ -781,6 +784,10 @@ function showEventModal(event) {
 
   modal.style.display = 'flex';
 }
+
+globalThis.addEventListener('locale-change', () => {
+  if (G.activeEvent) showEventModal(G.activeEvent);
+});
 
 function hideEventModal() {
   const modal = document.getElementById('event-modal');
@@ -824,12 +831,29 @@ export function isOfficeFlooded(officeKey) {
 // Summary of active buffs/debuffs for HUD display
 export function getActiveBuffSummary() {
   const buffs = [];
-  if (G.competitorDebuff) buffs.push(`⚔️ Competitor: -${Math.round(G.competitorDebuff.acvPenalty * 100)}% ACV (${G.competitorDebuff.weeksLeft}w)`);
-  if (G.marketBoom) buffs.push(`🚀 Market Boom: +${Math.round(G.marketBoom.bonus * 100)}% projects (${G.marketBoom.weeksLeft}w)`);
-  if (G.viralBuff) buffs.push(`📱 Viral: ${G.viralBuff.organicMultiplier}x organic (${G.viralBuff.weeksLeft}w)`);
-  if (G.techBuff) buffs.push(`💡 Tech: +${Math.round(G.techBuff.efficiencyBonus * 100)}% efficiency (${G.techBuff.weeksLeft}w)`);
-  if (G.freeWorkerDaysLeft > 0) buffs.push(`🤝 Free worker: ${G.freeWorkerDaysLeft}d left`);
-  if (G.floodedOffice) buffs.push(`🌊 ${G.floodedOffice.office} flooded: ${G.floodedOffice.daysLeft}d`);
+  if (G.competitorDebuff) buffs.push(t('event.buffs.competitor', {
+    percent: formatNumber(Math.round(G.competitorDebuff.acvPenalty * 100)),
+    weeks: formatNumber(G.competitorDebuff.weeksLeft),
+  }));
+  if (G.marketBoom) buffs.push(t('event.buffs.marketBoom', {
+    percent: formatNumber(Math.round(G.marketBoom.bonus * 100)),
+    weeks: formatNumber(G.marketBoom.weeksLeft),
+  }));
+  if (G.viralBuff) buffs.push(t('event.buffs.viral', {
+    multiplier: formatNumber(G.viralBuff.organicMultiplier),
+    weeks: formatNumber(G.viralBuff.weeksLeft),
+  }));
+  if (G.techBuff) buffs.push(t('event.buffs.tech', {
+    percent: formatNumber(Math.round(G.techBuff.efficiencyBonus * 100)),
+    weeks: formatNumber(G.techBuff.weeksLeft),
+  }));
+  if (G.freeWorkerDaysLeft > 0) buffs.push(t('event.buffs.freeWorker', {
+    days: formatNumber(G.freeWorkerDaysLeft),
+  }));
+  if (G.floodedOffice) buffs.push(t('event.buffs.flooded', {
+    office: translateLabel(`content.offices.${G.floodedOffice.office}`, G.floodedOffice.office),
+    days: formatNumber(G.floodedOffice.daysLeft),
+  }));
   return buffs;
 }
 

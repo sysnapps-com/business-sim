@@ -22,13 +22,20 @@ import { showEquipmentPanel, hideEquipmentPanel } from './ui/equipment-panel.js'
 import { initCashflowGraph, updateCashflowGraph } from './ui/cashflow-graph.js';
 import { initFloatingChartPanel } from './ui/floating-chart.js';
 import { initStrategyPanel, updateStrategyPanel } from './ui/strategy-panel.js';
-import { initIntro, showLevelIntro, hideIntro } from './ui/intro.js';
+import { initIntro, showLevelIntro, hideIntro, refreshIntro } from './ui/intro.js';
 import { handleBuildClick, handleBuildMouseDown, handleBuildMouseMove, handleBuildMouseUp, setSelectedRoomType, setCorridorMode, isCorridorMode, cycleRotation, resetRotation } from './build-mode.js';
 import { initAudio, toggleMusic } from './audio.js';
 import { resumeAudioCtx, sfxClick } from './sfx.js';
 import { showToast } from './ui/toast.js';
 import { initHudPopovers } from './ui/hud-popover.js';
 import { aiCeoTick, toggleAiCeo, enableAiCeo } from './ai-ceo.js';
+import { formatCurrency, initializeLocale, t, translateLabel } from './i18n/index.js';
+import { applyDocumentTranslations } from './i18n/dom.js';
+import { initLanguageSelector } from './ui/language.js';
+
+initializeLocale();
+applyDocumentTranslations();
+initLanguageSelector();
 
 // roundRect polyfill
 const ctx = document.getElementById('game').getContext('2d');
@@ -60,6 +67,31 @@ initStrategyPanel();
 initIntro();
 initAudio();
 initHudPopovers();
+
+globalThis.addEventListener('locale-change', () => {
+  applyDocumentTranslations();
+  pickerGrid?.querySelectorAll('.company-card').forEach(card => {
+    const companyType = card.dataset.type;
+    const definition = COMPANY_TYPES[companyType];
+    if (!definition) return;
+    card.querySelector('.company-name').textContent = translateLabel(
+      `content.companies.${companyType}.name`, definition.name,
+    );
+    card.querySelector('.company-tagline').textContent = translateLabel(
+      `content.companies.${companyType}.tagline`, definition.tagline,
+    );
+  });
+  if (selectedCompanyType) {
+    const definition = COMPANY_TYPES[selectedCompanyType];
+    const name = translateLabel(`content.companies.${selectedCompanyType}.name`, definition.name);
+    if (pickerBtn) pickerBtn.textContent = t('intro.startAs', { name });
+  }
+  updateUI();
+  updateStrategyPanel();
+  renderBuildPanel();
+  updateCashflowGraph();
+  refreshIntro();
+});
 
 // ─── Corridor drag painting callbacks ───────────────────────
 setBuildDragCallbacks({
@@ -114,14 +146,15 @@ const pickerBtn = document.getElementById('company-start-btn');
 if (pickerGrid) {
   const allRooms = { ...OFFICE_TYPES, ...COMMON_ROOMS };
   for (const [typeKey, typeDef] of Object.entries(COMPANY_TYPES)) {
-    const officeIcons = typeDef.available.map(k => allRooms[k]?.icon || '').filter(Boolean).join('');
+    const companyName = translateLabel(`content.companies.${typeKey}.name`, typeDef.name);
+    const companyTagline = translateLabel(`content.companies.${typeKey}.tagline`, typeDef.tagline);
     const card = document.createElement('div');
     card.className = 'company-card';
     card.dataset.type = typeKey;
     card.innerHTML = `
       <div class="company-icon">${typeDef.icon}</div>
-      <div class="company-name">${typeDef.name}</div>
-      <div class="company-tagline">${typeDef.tagline}</div>
+      <div class="company-name">${companyName}</div>
+      <div class="company-tagline">${companyTagline}</div>
       <div class="company-offices">${typeDef.available.map(k => `<span title="${allRooms[k]?.name || k}">${allRooms[k]?.icon || ''}</span>`).join('')}</div>
     `;
     card.addEventListener('click', () => {
@@ -131,7 +164,7 @@ if (pickerGrid) {
       selectedCompanyType = typeKey;
       pickerBtn.disabled = false;
       pickerBtn.style.opacity = '1';
-      pickerBtn.textContent = `Start as ${typeDef.name} →`;
+      pickerBtn.textContent = t('intro.startAs', { name: companyName });
     });
     pickerGrid.appendChild(card);
   }
@@ -213,23 +246,23 @@ function showExpansionPopup(exp, sx, sy) {
     font-family: system-ui; color: #f0d0a0;
   `;
   popup.innerHTML = `
-    <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">🗺️ ${exp.name}</div>
-    <div style="font-size: 11px; color: #a08870; margin-bottom: 10px;">${exp.w}×${exp.h} tiles of new land</div>
+    <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">🗺️ ${translateLabel(`content.expansions.${exp.id}`, exp.name)}</div>
+    <div style="font-size: 11px; color: #a08870; margin-bottom: 10px;">${t('build.landSize', { w: exp.w, h: exp.h })}</div>
     <div style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: ${canAfford ? '#50c878' : '#e05050'}">
-      $${exp.cost.toLocaleString()}
+      ${formatCurrency(exp.cost)}
     </div>
     <div style="display: flex; gap: 8px; justify-content: center;">
       <button id="exp-buy-btn" ${canAfford ? '' : 'disabled'} style="
         padding: 8px 20px; border-radius: 8px; border: none; cursor: ${canAfford ? 'pointer' : 'not-allowed'};
         background: ${canAfford ? 'linear-gradient(135deg, #e07030, #c05020)' : '#333'};
         color: ${canAfford ? 'white' : '#666'}; font-size: 13px; font-weight: 700;
-      ">Buy Land</button>
+      " >${t('build.buyLand')}</button>
       <button id="exp-cancel-btn" style="
         padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(240,160,80,0.2);
         background: transparent; color: #a08870; font-size: 13px; cursor: pointer;
-      ">Cancel</button>
+      " >${t('hud.cancel')}</button>
     </div>
-    ${!canAfford ? '<div style="font-size: 10px; color: #e05050; margin-top: 8px;">Not enough funds</div>' : ''}
+    ${!canAfford ? `<div style="font-size: 10px; color: #e05050; margin-top: 8px;">${t('build.notEnoughFundsShort')}</div>` : ''}
   `;
   document.body.appendChild(popup);
 
@@ -250,7 +283,10 @@ function showExpansionPopup(exp, sx, sy) {
       }
 
       sfxClick();
-      showToast(`Expanded: ${exp.name}! -$${exp.cost.toLocaleString()}`);
+      showToast(t('toast.expanded', {
+        name: translateLabel(`content.expansions.${exp.id}`, exp.name),
+        amount: formatCurrency(exp.cost),
+      }));
       G.uiDirty = true;
       popup.remove();
     });

@@ -12,6 +12,7 @@ import { showToast } from './ui/toast.js';
 import { getRoomUnlockState } from './progression.js';
 import { sfxBuild, sfxHire, sfxError } from './sfx.js';
 import { rotatedSize } from './rotation.js';
+import { formatCurrency, t, translateLabel } from './i18n/index.js';
 
 let selectedRoomType = null;
 let ghostValid = false;
@@ -58,7 +59,7 @@ export function handleBuildClick(sx, sy) {
   const unlock = getRoomUnlockState(selectedRoomType);
   if (!unlock.unlocked) {
     sfxError();
-    showToast(`🔒 Locked: ${unlock.requirement}`);
+    showToast(t('toast.locked', { requirement: unlock.requirement }));
     return true;
   }
 
@@ -73,13 +74,13 @@ export function handleBuildClick(sx, sy) {
 
   if (!canPlaceRoom(rx, ry, w, h)) {
     sfxError();
-    showToast('Cannot place here — needs corridor adjacency!');
+    showToast(t('toast.cannotPlace'));
     return true;
   }
 
   if (G.money < cost) {
     sfxError();
-    showToast(`Not enough funds! Need $${cost.toLocaleString()}`);
+    showToast(t('toast.notEnoughFunds', { amount: formatCurrency(cost) }));
     return true;
   }
 
@@ -88,7 +89,10 @@ export function handleBuildClick(sx, sy) {
   if (room) {
     connectRoomToCorridor(room);
     sfxBuild();
-    showToast(`🔨 Building ${def.name}... -$${cost.toLocaleString()}`);
+    showToast(t('toast.building', {
+      name: translateLabel(`content.offices.${selectedRoomType}`, def.name),
+      amount: formatCurrency(cost),
+    }));
     G.uiDirty = true;
 
     // Tutorial progression
@@ -163,7 +167,7 @@ export function drawBuildGhost() {
     ctx.fillStyle = valid ? '#50c878' : '#e05050';
     ctx.font = `bold ${10 * zoom}px system-ui`;
     ctx.textAlign = 'center';
-    ctx.fillText('Corridor', s.x, s.y - 4 * zoom);
+    ctx.fillText(t('build.corridor'), s.x, s.y - 4 * zoom);
     return;
   }
 
@@ -233,10 +237,10 @@ export function drawBuildGhost() {
   ctx.fillStyle = ghostValid ? '#50c878' : '#e05050';
   ctx.font = `bold ${12 * zoom}px system-ui`;
   ctx.textAlign = 'center';
-  ctx.fillText(`${def.icon} ${def.name}`, center.x, center.y - 5 * zoom);
+  ctx.fillText(`${def.icon} ${translateLabel(`content.offices.${selectedRoomType}`, def.name)}`, center.x, center.y - 5 * zoom);
   ctx.font = `${10 * zoom}px system-ui`;
   const rotLabel = rotation > 0 ? ` ↻${rotation * 90}°` : '';
-  ctx.fillText(`$${(def.cost || 1000).toLocaleString()}${rotLabel}`, center.x, center.y + 10 * zoom);
+  ctx.fillText(`${formatCurrency(def.cost || 1000)}${rotLabel}`, center.x, center.y + 10 * zoom);
 
   // Show hint if not adjacent to corridor
   if (!ghostValid && rx >= 0 && ry >= 0) {
@@ -252,7 +256,7 @@ export function drawBuildGhost() {
     if (allEmpty && !isAdjacentToCorridor(rx, ry, w, h)) {
       ctx.fillStyle = '#e05050';
       ctx.font = `${9 * zoom}px system-ui`;
-      ctx.fillText('Paint corridors first!', center.x, center.y + 22 * zoom);
+      ctx.fillText(t('build.corridorFirst'), center.x, center.y + 22 * zoom);
     }
   }
 }
@@ -262,7 +266,7 @@ export function hireAgent(roleKey, candidate = null) {
   const signingCost = candidate?.signingCost ?? HIRE_COST;
   if (G.money < signingCost) {
     sfxError();
-    showToast('Not enough funds to hire!');
+    showToast(t('toast.notEnoughHire'));
     return false;
   }
 
@@ -273,7 +277,9 @@ export function hireAgent(roleKey, candidate = null) {
   const hasOffice = getRoomInstances().some(r => r.typeKey === role.office);
   if (!hasOffice) {
     sfxError();
-    showToast(`Build a ${OFFICE_TYPES[role.office]?.name || 'matching office'} first!`);
+    showToast(t('build.buildOfficeFirst', {
+      name: translateLabel(`content.offices.${role.office}`, OFFICE_TYPES[role.office]?.name || 'matching office'),
+    }));
     return false;
   }
 
@@ -292,8 +298,12 @@ export function hireAgent(roleKey, candidate = null) {
   }
 
   sfxHire();
-  const salaryInfo = ` ($${(agent.salary ?? AGENT_SALARY[roleKey] ?? 70)}/day)`;
-  showToast(`Hired ${agent.name} as ${role.title}${salaryInfo}! -$${signingCost}`);
+  showToast(t('toast.hiredAs', {
+    name: agent.name,
+    role: translateLabel(`content.roles.${roleKey}`, role.title),
+    salary: formatCurrency(agent.salary ?? AGENT_SALARY[roleKey] ?? 70),
+    cost: formatCurrency(signingCost),
+  }));
   G.uiDirty = true;
 
   if (!G.completedTriggers.has('first_hire')) {

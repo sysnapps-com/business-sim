@@ -6,6 +6,7 @@ import { TILE_W, TILE_H } from '../config.js';
 import { getCtx, toScreen, getZoom } from '../engine.js';
 import { getRoomInstances } from '../map.js';
 import { G } from '../game.js';
+import { formatNumber, t, translateLabel } from '../i18n/index.js';
 
 // ─── Construction Animation ────────────────────────────────
 export function drawConstruction() {
@@ -94,7 +95,7 @@ export function drawConstruction() {
     ctx.font = `bold ${Math.max(8, 9 * zoom)}px system-ui`;
     ctx.textAlign = 'center';
     const pct = Math.round(cp * 100);
-    ctx.fillText(`🔨 BUILDING ${pct}%`, center.x, barY - 3 * zoom);
+    ctx.fillText(t('build.buildingProgress', { percent: formatNumber(pct) }), center.x, barY - 3 * zoom);
   }
 }
 
@@ -124,7 +125,7 @@ export function drawRoomActivity() {
     ctx.fillStyle = '#fff';
     ctx.font = `${Math.max(8, 9*zoom)}px system-ui`;
     ctx.textAlign = 'center';
-    ctx.fillText(p.currentPhase.toUpperCase(), center.x, barY - 2*zoom);
+    ctx.fillText(translateLabel(`content.phases.${p.currentPhase}`, p.currentPhase).toUpperCase(), center.x, barY - 2*zoom);
   }
 }
 
@@ -149,5 +150,5 @@ export function drawEntrance() {
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
   ctx.font = `${12*zoom}px system-ui`;
   ctx.textAlign = 'center';
-  ctx.fillText('▼ ENTRANCE', es.x, es.y + Math.sin(G.gameTick*0.04)*3*zoom);
+  ctx.fillText(t('renderer.entrance'), es.x, es.y + Math.sin(G.gameTick*0.04)*3*zoom);
 }

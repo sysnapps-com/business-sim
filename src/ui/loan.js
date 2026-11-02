@@ -6,6 +6,7 @@ import { G } from '../game.js';
 import { showToast } from './toast.js';
 import { sfxGameOver } from '../sfx.js';
 import { isAiCeoEnabled } from '../ai-ceo.js';
+import { formatCurrency, formatNumber, t } from '../i18n/index.js';
 
 let initialized = false;
 
@@ -20,8 +21,8 @@ function ensureListeners() {
   if (slider) {
     slider.addEventListener('input', () => {
       const amount = parseInt(slider.value, 10);
-      amountDisplay.textContent = '$' + amount.toLocaleString();
-      interestPreview.textContent = '$' + Math.round(amount * G.loanInterestRate).toLocaleString();
+      amountDisplay.textContent = formatCurrency(amount);
+      interestPreview.textContent = formatCurrency(Math.round(amount * G.loanInterestRate));
     });
   }
 
@@ -30,7 +31,7 @@ function ensureListeners() {
     G.takeLoan(amount);
     hideLoanModal();
     G.gameSpeed = 1;
-    showToast(`🏦 Loan of $${amount.toLocaleString()} received! Repay before interest piles up.`);
+    showToast(t('toast.loanReceived', { amount: formatCurrency(amount) }));
   });
 
   document.getElementById('loan-decline-btn')?.addEventListener('click', () => {
@@ -38,7 +39,7 @@ function ensureListeners() {
     G.loanModalOpen = false;
     G.gameOver = true;
     sfxGameOver();
-    showToast('💀 BANKRUPT! Your agency ran out of money.');
+    showToast(t('toast.bankrupt'));
   });
 }
 
@@ -49,8 +50,8 @@ export function showLoanModal() {
   if (!modal) return;
 
   // Update display values
-  document.getElementById('loan-cash').textContent = '$' + G.money.toLocaleString();
-  document.getElementById('loan-existing-debt').textContent = '$' + G.debt.toLocaleString();
+  document.getElementById('loan-cash').textContent = formatCurrency(G.money);
+  document.getElementById('loan-existing-debt').textContent = formatCurrency(G.debt);
 
   const slider = document.getElementById('loan-amount-slider');
   const amountDisplay = document.getElementById('loan-amount-display');
@@ -58,13 +59,13 @@ export function showLoanModal() {
 
   // Update dynamic interest rate display
   const rateDisplay = document.getElementById('loan-rate-display');
-  if (rateDisplay) rateDisplay.textContent = `${Math.round(G.loanInterestRate * 100)}% per week`;
+  if (rateDisplay) rateDisplay.textContent = `${formatNumber(Math.round(G.loanInterestRate * 100))}% ${t('loan.perWeek')}`;
 
   // Scale loan options based on current costs
   const defaultAmount = Math.max(2000, Math.ceil(G.metrics.dailyCosts * 5 / 1000) * 1000);
   slider.value = defaultAmount;
-  amountDisplay.textContent = '$' + defaultAmount.toLocaleString();
-  interestPreview.textContent = '$' + Math.round(defaultAmount * G.loanInterestRate).toLocaleString();
+  amountDisplay.textContent = formatCurrency(defaultAmount);
+  interestPreview.textContent = formatCurrency(Math.round(defaultAmount * G.loanInterestRate));
 
   modal.style.display = 'flex';
 
@@ -74,7 +75,7 @@ export function showLoanModal() {
     G.takeLoan(amount);
     hideLoanModal();
     G.gameSpeed = 2;
-    showToast(`🤖 AI CEO took a $${amount.toLocaleString()} emergency loan.`);
+    showToast(t('toast.aiLoan', { amount: formatCurrency(amount) }));
   }
 }
 
